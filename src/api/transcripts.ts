@@ -31,7 +31,7 @@ function parseAkomaNtosoXml(xmlString: string, debateSectionUri: string, memberU
     const memberIdSegment = memberUri.split('/member/')[1];
     if (memberIdSegment) {
       for (const [eId, meta] of Object.entries(speakerRegistry)) {
-        if (meta.uri?.includes(memberIdSegment)) {
+        if (meta?.uri?.includes(memberIdSegment)) {
           internalSpeakerId = eId;
           break;
         }
