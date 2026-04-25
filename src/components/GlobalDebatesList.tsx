@@ -135,6 +135,17 @@ export function GlobalDebatesList({ chamber, houseNo, onNavigateToDebate }: Glob
     });
   }, [allRows, chamberType, committeeCode, term]);
 
+  // Group filtered rows by month — must be before any early returns (rules of hooks)
+  const monthGroups = useMemo(() => {
+    const g: Record<string, typeof filteredRows> = {};
+    for (const r of filteredRows) {
+      const m = r.debate.date.slice(0, 7);
+      if (!g[m]) g[m] = [];
+      g[m].push(r);
+    }
+    return Object.entries(g).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [filteredRows]);
+
   if (loading) {
     return (
       <div className="loading-state" role="status" aria-live="polite">
@@ -147,17 +158,6 @@ export function GlobalDebatesList({ chamber, houseNo, onNavigateToDebate }: Glob
   if (error) {
     return <div className="error-banner" role="alert">Failed to load debates: {error}</div>;
   }
-
-  // Group filtered rows by month
-  const monthGroups = useMemo(() => {
-    const g: Record<string, typeof filteredRows> = {};
-    for (const r of filteredRows) {
-      const m = r.debate.date.slice(0, 7);
-      if (!g[m]) g[m] = [];
-      g[m].push(r);
-    }
-    return Object.entries(g).sort((a, b) => b[0].localeCompare(a[0]));
-  }, [filteredRows]);
 
   function groupLabel(ym: string) {
     const [y, m] = ym.split('-');
