@@ -5,9 +5,11 @@ const PROXY_URL = 'https://corsproxy.io/?';
 const FETCH_TIMEOUT_MS = 15000;
 
 export class TranscriptFetchError extends Error {
-  constructor(message: string, public sourceUrl: string) {
+  sourceUrl: string;
+  constructor(message: string, sourceUrl: string) {
     super(message);
     this.name = 'TranscriptFetchError';
+    this.sourceUrl = sourceUrl;
   }
 }
 
