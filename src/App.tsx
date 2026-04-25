@@ -16,7 +16,6 @@ import { CommitteePage } from './components/CommitteePage';
 import { OfficesPage } from './components/OfficesPage';
 import { PartyBreakdown } from './components/PartyBreakdown';
 import { viewToHash, parseHash } from './utils/routing';
-import { partyColor } from './utils/format';
 
 function latestForChamber(c: Chamber): number {
   return c === 'seanad' ? LATEST_SEANAD : LATEST_DAIL;
