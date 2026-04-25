@@ -127,7 +127,7 @@ oireachtas/
 │   └── deploy.yml             # GitHub Actions: build & deploy to GitHub Pages
 ├── eslint.config.js
 ├── tsconfig.{json,app.json,node.json}
-├── vite.config.ts             # base: '/oireachtas/' for GitHub Pages
+├── vite.config.ts             # base: '/oireachtas-explorer/' for GitHub Pages
 ├── NOTICE                     # Full data-licence attribution
 └── package.json
 ```
@@ -158,13 +158,13 @@ Every push to `main` triggers a build and publishes the result to the
 
 **One-time setup:**
 
-1. Push this repository to GitHub (e.g. at `github.com/<you>/oireachtas`).
+1. Push this repository to GitHub (e.g. at `github.com/<you>/oireachtas-explorer`).
 2. In the repository **Settings → Pages**, set the source to
    **GitHub Actions**.
 3. Push any commit to `main` — the workflow will build and deploy
    automatically.
 
-The live URL will be `https://<you>.github.io/oireachtas/`.
+The live URL will be `https://<you>.github.io/oireachtas-explorer/`.
 
 > **If you rename the repository**, update `base` in `vite.config.ts`
 > to match the new name, e.g. `base: '/new-repo-name/'`.

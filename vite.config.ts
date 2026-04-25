@@ -6,6 +6,6 @@ import react from '@vitejs/plugin-react'
 // Update this if you rename the repository.
 export default defineConfig({
   plugins: [react()],
-  base: '/oireachtas/',
+  base: '/oireachtas-explorer/',
   server: { port: 5174 },
 })

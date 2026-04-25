@@ -123,7 +123,7 @@ fun AboutScreen(
                     textDecoration = TextDecoration.Underline
                 ),
                 modifier = Modifier.clickable {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://daithimac.github.io/oireachtas/privacy.html"))
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://oireachtas-explorer.github.io/oireachtas-explorer/privacy.html"))
                     context.startActivity(intent)
                 }
             )
