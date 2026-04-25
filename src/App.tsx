@@ -4,7 +4,6 @@ import type { Chamber, View, Constituency, Member } from './types';
 import { LogoSVG } from './components/Logo';
 import { fetchConstituencies, fetchAllMembers } from './api/oireachtas';
 import { houseList, LATEST_DAIL, LATEST_SEANAD, chamberName, memberNoun } from './utils/dail';
-import { ConstituencyPicker } from './components/ConstituencyPicker';
 import { MemberGrid } from './components/MemberGrid';
 import { MemberCard } from './components/MemberCard';
 import { MemberProfile } from './components/MemberProfile';
@@ -126,7 +125,7 @@ export default function App() {
   const [houseNo, setHouseNo] = useState(initial.houseNo);
   const [constituencies, setConstituencies] = useState<Constituency[]>([]);
   const [allMembers, setAllMembers] = useState<Member[]>([]);
-  const [loadingConstituencies, setLoadingConstituencies] = useState(true);
+  const [, setLoadingConstituencies] = useState(true);
   const [loadingMembers, setLoadingMembers] = useState(true);
   const [constituenciesError, setConstituenciesError] = useState<string | null>(null);
 

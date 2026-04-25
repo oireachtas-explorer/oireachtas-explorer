@@ -1,7 +1,5 @@
 import { useMemo, useState } from 'react';
 import type { Chamber, Constituency, Member } from '../types';
-import { chamberName, houseLabelFull, memberNoun } from '../utils/dail';
-import { PartyBreakdown } from './PartyBreakdown';
 
 interface ConstituencyPickerProps {
   constituencies: Constituency[];
@@ -15,11 +13,8 @@ interface ConstituencyPickerProps {
 
 export function ConstituencyPicker({
   constituencies,
-  allMembers,
   loading,
-  loadingMembers,
   chamber,
-  houseNo,
   onSelect,
 }: ConstituencyPickerProps) {
   const groupLabel = chamber === 'seanad' ? 'Panels' : 'Constituencies';
@@ -49,23 +44,6 @@ export function ConstituencyPicker({
 
   return (
     <div className="constituency-picker-contents">
-      <div className="picker__stats">
-        <div className="picker__stat">
-          <span className="picker__stat-number">{loading ? '…' : constituencies.length || '—'}</span>
-          <span className="picker__stat-label">{groupLabel}</span>
-        </div>
-        <div className="picker__stat">
-          <span className="picker__stat-number">
-            {loadingMembers ? '…' : allMembers.length || '—'}
-          </span>
-          <span className="picker__stat-label">{memberNoun(chamber, true)}</span>
-        </div>
-        <div className="picker__stat">
-          <span className="picker__stat-number">{houseLabelFull(chamber, houseNo).split(' ')[0]}</span>
-          <span className="picker__stat-label">{chamberName(chamber)}</span>
-        </div>
-      </div>
-      <PartyBreakdown members={allMembers} loading={loadingMembers} chamber={chamber} houseNo={houseNo} />
 
       {loading ? (
         <div className="loading-state" role="status" aria-live="polite">
