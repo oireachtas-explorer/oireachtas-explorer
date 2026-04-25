@@ -9,15 +9,28 @@ final class MemberProfileViewModel: ObservableObject {
     @Published var votes: [Division] = []
     @Published var questions: [Question] = []
     @Published var bills: [Bill] = []
+    @Published var counts: (debates: Int, votes: Int, questions: Int, bills: Int) = (0, 0, 0, 0)
     @Published var loadingDebates = false
     @Published var loadingVotes = false
     @Published var loadingQuestions = false
     @Published var loadingBills = false
+    @Published var loadingCounts = false
 
     var debatesLoaded = false
     var votesLoaded = false
     var questionsLoaded = false
     var billsLoaded = false
+    var countsLoaded = false
+
+    func loadCounts(memberUri: String) async {
+        guard !countsLoaded else { return }
+        countsLoaded = true
+        loadingCounts = true
+        if let c = try? await OireachtasAPI.shared.memberCounts(memberUri: memberUri) {
+            counts = c
+        }
+        loadingCounts = false
+    }
 
     func loadDebates(memberUri: String) async {
         guard !debatesLoaded else { return }
@@ -169,6 +182,7 @@ struct MemberProfileView: View {
     private func loadTabData(_ tab: String) {
         let uri = member.uri
         switch tab {
+        case "Overview":   Task { await vm.loadCounts(memberUri: uri) }
         case "Debates":    Task { await vm.loadDebates(memberUri: uri) }
         case "Votes":      Task { await vm.loadVotes(memberUri: uri) }
         case "Questions":  Task { await vm.loadQuestions(memberUri: uri) }
@@ -199,10 +213,10 @@ struct MemberProfileView: View {
                 columns: [GridItem(.flexible()), GridItem(.flexible())],
                 spacing: 8
             ) {
-                overviewStatCard("Debates",   value: "—")
-                overviewStatCard("Votes",     value: "—")
-                overviewStatCard("Questions", value: "—")
-                overviewStatCard("Bills",     value: "—")
+                overviewStatCard("Debates",   value: countLabel(vm.counts.debates))
+                overviewStatCard("Votes",     value: countLabel(vm.counts.votes))
+                overviewStatCard("Questions", value: countLabel(vm.counts.questions))
+                overviewStatCard("Bills",     value: countLabel(vm.counts.bills))
             }
             .padding(16)
 
@@ -227,6 +241,12 @@ struct MemberProfileView: View {
                 .padding(.bottom, 16)
             }
         }
+    }
+
+    private func countLabel(_ n: Int) -> String {
+        // Show a dash while counts are loading rather than a misleading "0"
+        if vm.loadingCounts && n == 0 { return "…" }
+        return "\(n)"
     }
 
     private func overviewStatCard(_ label: String, value: String) -> some View {

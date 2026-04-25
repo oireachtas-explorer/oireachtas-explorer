@@ -105,7 +105,7 @@ struct DebatesView: View {
                 Text("Dáil Debates")
                     .font(.dmSerif(size: 26))
                     .foregroundColor(Color.headingText)
-                Text("Official records · 33rd Dáil")
+                Text("Official records · 34th Dáil")
                     .font(.inter(size: 13))
                     .foregroundColor(Color.secondaryText)
             }
