@@ -148,123 +148,120 @@ export function GlobalDebatesList({ chamber, houseNo, onNavigateToDebate }: Glob
     return <div className="error-banner" role="alert">Failed to load debates: {error}</div>;
   }
 
+  // Group filtered rows by month
+  const monthGroups = useMemo(() => {
+    const g: Record<string, typeof filteredRows> = {};
+    for (const r of filteredRows) {
+      const m = r.debate.date.slice(0, 7);
+      if (!g[m]) g[m] = [];
+      g[m].push(r);
+    }
+    return Object.entries(g).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [filteredRows]);
+
+  function groupLabel(ym: string) {
+    const [y, m] = ym.split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${months[+m - 1]} ${y}`;
+  }
+
   return (
     <>
-      <div style={{ marginBottom: '24px', padding: '20px', borderRadius: '12px', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)' }}>
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '16px' }}>
-          <div style={{ flex: '1 1 180px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '6px' }}>Chamber Type</label>
-            <select
-              value={chamberType}
-              onChange={e => { setChamberType(e.target.value as ChamberType); }}
-              style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-md)', border: '2px solid var(--color-border)', fontFamily: 'inherit', color: 'var(--color-text)', background: 'white' }}
-            >
-              <option value="house">{chamberName(chamber)} Plenary</option>
-              <option value="committee">Committees</option>
-              <option value="">All Debates</option>
-            </select>
-          </div>
-
-          {chamberType === 'committee' && (
-            <div style={{ flex: '1 1 220px', animation: 'fadeInUp 0.2s ease' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '6px' }}>
-                Committee {availableCommittees.length > 0 && `(${availableCommittees.length} loaded)`}
-              </label>
-              <select
-                value={committeeCode}
-                onChange={e => { setCommitteeCode(e.target.value); }}
-                disabled={availableCommittees.length === 0}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-md)', border: '2px solid var(--color-border)', fontFamily: 'inherit', color: 'var(--color-text)', background: 'white' }}
-              >
-                <option value="">All committees in loaded results</option>
-                {availableCommittees.map(c => (
-                  <option key={c.code} value={c.code}>{c.name} ({c.count})</option>
-                ))}
-              </select>
-              {availableCommittees.length === 0 && (
-                <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                  Load more results to populate committees.
-                </div>
-              )}
-            </div>
-          )}
-
-          <div style={{ flex: '1 1 140px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '6px' }}>Start Date</label>
-            <input
-              type="date"
-              value={dateStart}
-              onChange={e => { setDateStart(e.target.value); }}
-              style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', border: '2px solid var(--color-border)', fontFamily: 'inherit', color: 'var(--color-text)' }}
-            />
-          </div>
-
-          <div style={{ flex: '1 1 140px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '6px' }}>End Date</label>
-            <input
-              type="date"
-              value={dateEnd}
-              onChange={e => { setDateEnd(e.target.value); }}
-              style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', border: '2px solid var(--color-border)', fontFamily: 'inherit', color: 'var(--color-text)' }}
-            />
-          </div>
-        </div>
-
-        <div>
-          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '6px' }}>
-            Search
-            {term && (
-              <span style={{ marginLeft: 8, fontWeight: 400, color: 'var(--color-text-secondary)' }}>
-                — {filteredRows.length} of {allRows.length} loaded match
-              </span>
-            )}
-          </label>
-          <input
-            type="text"
-            placeholder="Search loaded debates by title, section, chamber or date (YYYY-MM-DD)…"
-            value={searchInput}
-            onChange={e => { setSearchInput(e.target.value); }}
-            style={{ width: '100%', padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '2px solid var(--color-border)', fontFamily: 'inherit', fontSize: '15px' }}
-          />
-        </div>
-      </div>
-
-      <div className="debate-list">
-        {filteredRows.length === 0 ? (
-           <div className="error-banner">No debates match your filters in the loaded results. Try clearing the search, changing committee, or loading more.</div>
-        ) : filteredRows.map((r) => {
-          const canRead = !!r.debate.xmlUri;
+      {/* Type filter pills */}
+      <div className="type-filters">
+        {(['house', 'committee', ''] as ChamberType[]).map((t) => {
+          const label = t === 'house' ? `${chamberName(chamber)} Plenary` : t === 'committee' ? 'Committees' : 'All';
           return (
-            <div key={r.key} className="debate-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="debate-item__title" style={{ fontWeight: 600 }}>{r.title}</div>
-                <div className="debate-item__meta" style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
-                  <span>{formatDateShort(r.debate.date)}</span>
-                  <span style={{ margin: '0 6px' }}>·</span>
-                  <span>{r.debate.chamber}</span>
-                </div>
-              </div>
-              {canRead && (
-                <button
-                  className="read-transcript-btn"
-                  onClick={() => { onNavigateToDebate({
-                    kind: 'debate-viewer',
-                    xmlUri: r.debate.xmlUri ?? '',
-                    debateSectionUri: r.sectionUri,
-                    title: r.title,
-                  }); }}
-                  style={{ fontSize: '0.8rem', padding: '6px 12px', borderRadius: 'var(--radius-pill)', background: 'var(--color-accent)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 600, flexShrink: 0 }}
-                >
-                  Transcript
-                </button>
-              )}
-            </div>
+            <button key={t ?? 'all'}
+              className={`type-filter-btn${chamberType === t ? ' type-filter-btn--active' : ''}`}
+              onClick={() => { setChamberType(t); }}>
+              {label}
+            </button>
           );
         })}
       </div>
 
+      {/* Filter bar */}
+      <div className="filter-bar">
+        <div className="filter-group filter-search">
+          <label className="filter-label">
+            Search{term && ` — ${filteredRows.length} of ${allRows.length} match`}
+          </label>
+          <input className="filter-input" type="text"
+            placeholder="Search debates by title, chamber or date…"
+            value={searchInput}
+            onChange={e => { setSearchInput(e.target.value); }} />
+        </div>
+
+        {chamberType === 'committee' && (
+          <div className="filter-group" style={{ flex: '1 1 200px' }}>
+            <label className="filter-label">
+              Committee{availableCommittees.length > 0 ? ` (${availableCommittees.length})` : ''}
+            </label>
+            <select className="filter-select" value={committeeCode}
+              onChange={e => { setCommitteeCode(e.target.value); }}
+              disabled={availableCommittees.length === 0}>
+              <option value="">All committees</option>
+              {availableCommittees.map(c => (
+                <option key={c.code} value={c.code}>{c.name} ({c.count})</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div className="filter-group">
+          <label className="filter-label">From</label>
+          <input className="filter-input" type="date" value={dateStart}
+            onChange={e => { setDateStart(e.target.value); }} />
+        </div>
+        <div className="filter-group">
+          <label className="filter-label">To</label>
+          <input className="filter-input" type="date" value={dateEnd}
+            onChange={e => { setDateEnd(e.target.value); }} />
+        </div>
+        <div style={{ alignSelf: 'flex-end', fontSize: 13, color: 'var(--text3)', whiteSpace: 'nowrap', paddingBottom: 9 }}>
+          {filteredRows.length} result{filteredRows.length !== 1 ? 's' : ''}
+        </div>
+      </div>
+
+      {/* Results grouped by month */}
+      {monthGroups.length === 0 ? (
+        <div className="empty-state">No debates match your filters. Try clearing the search or loading more.</div>
+      ) : monthGroups.map(([ym, rows]) => (
+        <div key={ym} className="date-group">
+          <div className="date-group-label">{groupLabel(ym)}</div>
+          <div className="debate-list">
+            {rows.map((r) => {
+              const canRead = !!r.debate.xmlUri;
+              return (
+                <div key={r.key} className="debate-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="debate-item__title">{r.title}</div>
+                    <div className="debate-item__meta">
+                      <span className="debate-item__date">{formatDateShort(r.debate.date)}</span>
+                      <span style={{ fontSize: 12, color: 'var(--text4)' }}>{r.debate.chamber}</span>
+                    </div>
+                  </div>
+                  {canRead && (
+                    <button className="transcript-btn"
+                      onClick={() => { onNavigateToDebate({
+                        kind: 'debate-viewer',
+                        xmlUri: r.debate.xmlUri ?? '',
+                        debateSectionUri: r.sectionUri,
+                        title: r.title,
+                      }); }}>
+                      Transcript
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
       {allDebates.length < total && (
-        <button className="load-more-btn" style={{ marginTop: '1rem' }} onClick={() => { void handleLoadMore(); }} disabled={loadingMore}>
+        <button className="load-more-btn" onClick={() => { void handleLoadMore(); }} disabled={loadingMore}>
           {loadingMore ? 'Loading…' : `Load more (${total - allDebates.length} days remaining)`}
         </button>
       )}
