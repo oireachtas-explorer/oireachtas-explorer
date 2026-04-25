@@ -1,0 +1,2 @@
+-keep class ie.oireachtas.explorer.data.model.** { *; }
+-keepclassmembers class ie.oireachtas.explorer.data.model.** { *; }
