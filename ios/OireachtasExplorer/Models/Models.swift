@@ -442,5 +442,5 @@ func memberPhotoUrl(_ memberUri: String) -> String {
 
 // MARK: - Dáil metadata
 
-let currentDailNo = 33
+let currentDailNo = 34
 let currentDailChamberUri = "https://data.oireachtas.ie/ie/oireachtas/house/dail/\(currentDailNo)"

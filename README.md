@@ -1,10 +1,12 @@
 # Oireachtas Explorer
 
-An unofficial, single-page web app for browsing the work of the
+An unofficial, multi-platform research tool for browsing the work of the
 **Houses of the Oireachtas** — Ireland's parliament. It surfaces
 members, constituencies, voting records, debates, parliamentary
 questions, and legislation across every Dáil in history, drawn live
 from the public Oireachtas Open Data API.
+
+Available as a **single-page web application**, a **native Android application**, and a **native iOS application**.
 
 ![Built with React](https://img.shields.io/badge/React-19-149eca)
 ![Built with TypeScript](https://img.shields.io/badge/TypeScript-6-3178c6)
@@ -79,6 +81,8 @@ this application. The logo is an original design.
 
 ## Tech stack
 
+### Web Application
+
 | Layer        | Choice                                            |
 |--------------|---------------------------------------------------|
 | UI runtime   | React 19                                          |
@@ -88,7 +92,34 @@ this application. The logo is an original design.
 | Data fetch   | Native `fetch` with in-memory response cache      |
 | Local cache  | IndexedDB via a thin wrapper (parsed transcripts) |
 | Icons        | lucide-react                                      |
-| Lint         | ESLint 9, typescript-eslint `strictTypeChecked`   |
+
+### Android Application
+
+| Layer        | Choice                                            |
+|--------------|---------------------------------------------------|
+| Language     | Kotlin 2.1                                        |
+| UI Framework | Jetpack Compose (Material 3)                      |
+| Networking   | Retrofit 2 + OkHttp 4                             |
+| JSON Parsing | Moshi 1.15                                        |
+| Image Load   | Coil 2.7                                          |
+| Navigation   | Compose Navigation                                |
+
+### iOS Application
+
+| Layer        | Choice                                            |
+|--------------|---------------------------------------------------|
+| Language     | Swift 6                                           |
+| UI Framework | SwiftUI                                           |
+| Networking   | URLSession (async/await)                          |
+| JSON Parsing | Codable                                           |
+| Image Load   | Shared URLCache                                   |
+| Navigation   | NavigationStack + TabView                         |
+
+### Shared Tooling
+
+- **Data source:** [Oireachtas Open Data API](https://api.oireachtas.ie/)
+- **Linting:** ESLint 9 (Web), ktlint (Android)
+- **CI/CD:** GitHub Actions (Web deployment to GitHub Pages)
 
 There is **no backend** and no server-side rendering. Everything runs
 in the browser and talks directly to `api.oireachtas.ie` and
@@ -98,41 +129,31 @@ in the browser and talks directly to `api.oireachtas.ie` and
 
 ```
 oireachtas/
-├── index.html                 # Vite entry, meta + rights tags
-├── public/                    # Static assets (favicon.svg, icons.svg)
-├── src/
-│   ├── App.tsx                # Shell, header selector, routing, error boundary
-│   ├── main.tsx               # React root + ErrorBoundary wiring
-│   ├── App.css                # Global design system and component styles
-│   ├── types.ts               # Shared TypeScript types (View, Member, Debate, …)
-│   ├── api/
-│   │   ├── oireachtas.ts      # Typed wrappers over api.oireachtas.ie
-│   │   ├── transcripts.ts     # XML transcript fetch + parse
-│   │   └── transcriptDb.ts    # IndexedDB cache for parsed transcripts
-│   ├── hooks/
-│   │   ├── useAsync.ts        # Cancellable async + loading/error state
-│   │   └── usePaginatedList.ts# Paginated list with load-more
-│   ├── utils/
-│   │   ├── dail.ts            # Dáil metadata, house lists, date ranges, labels
-│   │   ├── format.ts          # Dates, party colours, bill status helpers
-│   │   └── routing.ts         # Hash ↔ view parser/serializer
-│   └── components/
-│       ├── App-level:   AttributionFooter, ErrorBoundary, Logo
-│       ├── Home:        ConstituencyPicker, PartyBreakdown
-│       ├── Member:      MemberGrid, MemberCard, MemberProfile
-│       ├── Lists:       DebatesList, VotesList, QuestionsList, BillsList
-│       ├── Debates:     GlobalDebatesList, DebateViewerPage, DebateTranscript
-│       └── Bills:       BillViewerPage
+├── index.html                 # Vite entry (Web)
+├── public/                    # Static assets (Web)
+├── src/                       # React source code (Web)
+│   ├── App.tsx                # Shell & routing
+│   ├── api/                   # Oireachtas API wrappers
+│   ├── components/            # UI components
+│   └── ...
+├── android/                   # Native Android application
+│   ├── app/                   # App module
+│   │   ├── src/main/java/     # Kotlin source code
+│   │   └── src/main/res/      # Android resources
+│   └── ...
+├── ios/                       # Native iOS application
+│   ├── OireachtasExplorer/    # App source code (SwiftUI)
+│   ├── OireachtasExplorer.xcodeproj
+│   └── ...
 ├── .github/workflows/
-│   └── deploy.yml             # GitHub Actions: build & deploy to GitHub Pages
-├── eslint.config.js
-├── tsconfig.{json,app.json,node.json}
-├── vite.config.ts             # base: '/oireachtas-explorer/' for GitHub Pages
-├── NOTICE                     # Full data-licence attribution
-└── package.json
+│   └── deploy.yml             # Web deployment pipeline
+├── vite.config.ts             # Web build config
+└── package.json               # Web dependencies
 ```
 
 ## Getting started
+
+### Web Application
 
 Prerequisites: Node 20+ and npm.
 
@@ -140,6 +161,22 @@ Prerequisites: Node 20+ and npm.
 npm install
 npm run dev         # http://localhost:5174
 ```
+
+### Android Application
+
+Prerequisites: Android Studio Ladybug+ and Android SDK 35.
+
+1. Open the `android/` folder in Android Studio.
+2. Sync the project with Gradle files.
+3. Run the `app` module on an emulator or physical device (API 26+).
+
+### iOS Application
+
+Prerequisites: Xcode 16+ and macOS.
+
+1. Open `ios/OireachtasExplorer.xcodeproj` in Xcode.
+2. Ensure the active scheme is `OireachtasExplorer`.
+3. Run on an iOS Simulator or physical device (iOS 17+).
 
 Other scripts:
 

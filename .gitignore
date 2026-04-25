@@ -76,3 +76,20 @@ tmp/
 # ── Misc ────────────────────────────────────────────────────────────
 *.bak
 *.orig
+
+# ── Mobile (Android & iOS) ──────────────────────────────────────────
+# Android
+.gradle/
+local.properties
+**/build/
+.cxx/
+*.keystore
+keystore.properties
+
+# iOS
+ios/build/
+ios/DerivedData/
+ios/*.xcworkspace
+ios/*.xcodeproj/xcuserdata/
+ios/*.xcodeproj/project.xcworkspace/xcuserdata/
+ios/*.xcworkspace/xcuserdata/

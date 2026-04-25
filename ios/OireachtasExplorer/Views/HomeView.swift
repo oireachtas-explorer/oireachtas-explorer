@@ -50,7 +50,7 @@ struct HomeView: View {
                 startPoint: .top, endPoint: .bottom
             )
             VStack(alignment: .center, spacing: 0) {
-                Text("Dáil Éireann · 33ú Dáil")
+                Text("Dáil Éireann · 34ú Dáil")
                     .font(.inter(size: 10, weight: .bold))
                     .tracking(1.0)
                     .foregroundColor(.white.opacity(0.5))
@@ -67,7 +67,7 @@ struct HomeView: View {
                 .lineSpacing(2)
                 .padding(.bottom, 14)
 
-                Text("Explore 160 TDs — their voting records, speeches and debates.")
+                Text("Explore 174 TDs — their voting records, speeches and debates.")
                     .font(.inter(size: 14))
                     .foregroundColor(.white.opacity(0.65))
                     .multilineTextAlignment(.center)
@@ -101,13 +101,13 @@ struct HomeView: View {
     private var statsSection: some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-                StatCell(number: "160",  label: "TDs")
+                StatCell(number: "174",  label: "TDs")
                     .overlay(Rectangle().frame(width: 1).foregroundColor(Color.cardBorder), alignment: .trailing)
-                StatCell(number: "42",   label: "Constituencies")
+                StatCell(number: "43",   label: "Constituencies")
             }
             Divider().background(Color.cardBorder)
             HStack(spacing: 0) {
-                StatCell(number: "33rd", label: "Dáil")
+                StatCell(number: "34th", label: "Dáil")
                     .overlay(Rectangle().frame(width: 1).foregroundColor(Color.cardBorder), alignment: .trailing)
                 StatCell(number: "2,847", label: "Debates")
             }
