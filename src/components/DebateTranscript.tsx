@@ -34,7 +34,15 @@ export function DebateTranscript({ xmlUri, debateSectionUri, memberUri, onClose 
       
       {error && (
         <div className="error-banner transcript-viewer__error" role="alert">
-           {error}
+          <span>{error}</span>
+          <a
+            className="transcript-viewer__fallback-link"
+            href={xmlUri}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Open XML source ↗
+          </a>
         </div>
       )}
       
@@ -47,20 +55,18 @@ export function DebateTranscript({ xmlUri, debateSectionUri, memberUri, onClose 
       {!loading && !error && segments && segments.length > 0 && (
         <div className="transcript-viewer__content">
           {segments.map((s, idx) => (
-            <div key={idx} className="transcript-segment" style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', alignItems: 'flex-start' }}>
-              <div className="transcript-segment__avatar" style={{ flexShrink: 0, width: '48px', height: '48px', borderRadius: '50%', backgroundColor: 'var(--color-bg-tertiary)', overflow: 'hidden' }}>
+            <div key={idx} className="transcript-segment">
+              <div className="transcript-segment__avatar">
                 {s.memberUri ? (
-                  <img src={getMemberPhotoUrl(s.memberUri)} alt={s.speakerName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" />
+                  <img src={getMemberPhotoUrl(s.memberUri)} alt="" loading="lazy" />
                 ) : (
-                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-tertiary)', fontSize: '0.8rem' }}>M</div>
+                  <span aria-hidden="true">M</span>
                 )}
               </div>
-              <div className="transcript-segment__body" style={{ flex: 1, minWidth: 0 }}>
-                <strong className="transcript-segment__speaker" style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--color-text-primary)' }}>
-                  {s.speakerName}
-                </strong>
+              <div className="transcript-segment__body">
+                <strong className="transcript-segment__speaker">{s.speakerName}</strong>
                 {s.paragraphs.map((p, i) => (
-                  <p key={i} className="transcript-viewer__paragraph" style={{ marginBottom: '0.75rem', lineHeight: 1.5, color: 'var(--color-text-secondary)' }}>{p}</p>
+                  <p key={i} className="transcript-viewer__paragraph">{p}</p>
                 ))}
               </div>
             </div>

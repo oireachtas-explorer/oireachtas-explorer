@@ -2,6 +2,14 @@ import { saveTranscript, getTranscript } from './transcriptDb';
 import type { SpeechSegment } from '../types';
 
 const PROXY_URL = 'https://corsproxy.io/?';
+const FETCH_TIMEOUT_MS = 15000;
+
+export class TranscriptFetchError extends Error {
+  constructor(message: string, public sourceUrl: string) {
+    super(message);
+    this.name = 'TranscriptFetchError';
+  }
+}
 
 function parseAkomaNtosoXml(xmlString: string, debateSectionUri: string, memberUri?: string): SpeechSegment[] {
   const parser = new DOMParser();
@@ -122,10 +130,31 @@ export async function fetchDebateTranscript(
   if (cached) return cached;
 
   const proxyUrl = `${PROXY_URL}${encodeURIComponent(xmlUri)}`;
-  const response = await fetch(proxyUrl, { signal });
+
+  const timeoutController = new AbortController();
+  const timeoutId = setTimeout(() => { timeoutController.abort(); }, FETCH_TIMEOUT_MS);
+  const combinedSignal = signal
+    ? AbortSignal.any([signal, timeoutController.signal])
+    : timeoutController.signal;
+
+  let response: Response;
+  try {
+    response = await fetch(proxyUrl, { signal: combinedSignal });
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (signal?.aborted) throw err;
+    throw new TranscriptFetchError(
+      'Unable to reach transcript service. View the official record on Oireachtas.ie.',
+      xmlUri
+    );
+  }
+  clearTimeout(timeoutId);
 
   if (!response.ok) {
-     throw new Error(`Failed to fetch transcript: ${response.statusText}`);
+    throw new TranscriptFetchError(
+      `Transcript unavailable (${response.status}). View the official record on Oireachtas.ie.`,
+      xmlUri
+    );
   }
 
   const xmlString = await response.text();

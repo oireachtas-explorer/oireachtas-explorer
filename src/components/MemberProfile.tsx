@@ -41,34 +41,21 @@ function VoteDonut({ breakdown }: { breakdown: VoteBreakdown }) {
 
   return (
     <div className="vote-donut">
-      <svg
-        viewBox="0 0 100 100"
-        className="vote-donut__svg"
-        role="img"
-        aria-label={`${total} total votes: ${ta} Tá, ${nil} Níl, ${staon} Staon`}
-      >
-        <circle cx="50" cy="50" r={radius} fill="none" stroke="var(--color-border)" strokeWidth="12" />
-        <circle
-          cx="50" cy="50" r={radius} fill="none"
+      <svg viewBox="0 0 100 100" className="vote-donut__svg" role="img"
+        aria-label={`${total} total votes: ${ta} Tá, ${nil} Níl, ${staon} Staon`}>
+        <circle cx="50" cy="50" r={radius} fill="none" stroke="var(--border)" strokeWidth="12" />
+        <circle cx="50" cy="50" r={radius} fill="none"
           stroke="var(--color-vote-for)" strokeWidth="12"
           strokeDasharray={`${taLen} ${circumference - taLen}`}
-          strokeDashoffset={circumference / 4}
-          strokeLinecap="round"
-        />
-        <circle
-          cx="50" cy="50" r={radius} fill="none"
+          strokeDashoffset={circumference / 4} strokeLinecap="round" />
+        <circle cx="50" cy="50" r={radius} fill="none"
           stroke="var(--color-vote-against)" strokeWidth="12"
           strokeDasharray={`${nilLen} ${circumference - nilLen}`}
-          strokeDashoffset={circumference / 4 - taLen}
-          strokeLinecap="round"
-        />
-        <circle
-          cx="50" cy="50" r={radius} fill="none"
+          strokeDashoffset={circumference / 4 - taLen} strokeLinecap="round" />
+        <circle cx="50" cy="50" r={radius} fill="none"
           stroke="var(--color-vote-abstain)" strokeWidth="12"
           strokeDasharray={`${staonLen} ${circumference - staonLen}`}
-          strokeDashoffset={circumference / 4 - taLen - nilLen}
-          strokeLinecap="round"
-        />
+          strokeDashoffset={circumference / 4 - taLen - nilLen} strokeLinecap="round" />
         <text x="50" y="48" textAnchor="middle" className="vote-donut__total">{total}</text>
         <text x="50" y="60" textAnchor="middle" className="vote-donut__label">votes</text>
       </svg>
@@ -89,8 +76,8 @@ function VoteDonut({ breakdown }: { breakdown: VoteBreakdown }) {
 
 const TAB_CONFIG: { key: ProfileTab; label: string; Icon: typeof BarChart3 }[] = [
   { key: 'overview', label: 'Overview', Icon: BarChart3 },
-  { key: 'debates', label: 'Debates & Speeches', Icon: MessagesSquare },
-  { key: 'votes', label: 'Voting Record', Icon: Vote },
+  { key: 'debates', label: 'Debates', Icon: MessagesSquare },
+  { key: 'votes', label: 'Votes', Icon: Vote },
   { key: 'questions', label: 'Questions', Icon: HelpCircle },
   { key: 'legislation', label: 'Legislation', Icon: ScrollText },
 ];
@@ -144,190 +131,158 @@ export function MemberProfile({ memberUri, constituencyName, chamber, houseNo, o
     );
   }
 
-  return (
-    <div className="container">
-      <button
-        className="back-btn"
-        onClick={onBack}
-        aria-label={`Back to ${constituencyName} members`}
-      >← Back to {constituencyName}</button>
+  const color = partyColor(member.party);
+  const since = memberSince(member.memberCode);
 
-      <div className="member-profile__hero">
-        <div className="member-profile__photo-wrap">
-          {!photoFailed ? (
-            <img
-              src={member.photoUrl}
-              alt={member.fullName}
-              loading="lazy"
-              decoding="async"
-              className="member-profile__photo"
-              onError={() => { setPhotoFailed(true); }}
-            />
-          ) : (
-            <div className="member-profile__initials">
-              {member.firstName[0]}{member.lastName[0]}
-            </div>
-          )}
-        </div>
-        <div className="member-profile__info">
-          <h1 className="member-profile__name">{member.fullName}</h1>
-          <div className="member-profile__meta">
-            <span
-              className="party-badge"
-              style={{ backgroundColor: partyColor(member.party) }}
-            >
-              {member.party}
-            </span>
-            <span>{member.constituency || constituencyName}</span>
-          </div>
-          {member.offices.length > 0 && (
-            <div className="member-profile__offices">
-              {member.offices.map((o, i) => (
-                <a
-                  key={i}
-                  className="office-badge"
+  return (
+    <div className="page">
+      <div className="profile-page">
+        <button className="back-btn" onClick={onBack} aria-label={`Back to ${constituencyName} members`}>
+          ← Back to {constituencyName}
+        </button>
+
+        <div className="profile-layout">
+          {/* Sticky sidebar */}
+          <aside className="profile-sidebar">
+            <div className="profile-sidebar-stripe" style={{ background: color }} />
+            <div className="profile-sidebar-body">
+              <div className="profile-photo-wrap">
+                {!photoFailed ? (
+                  <img src={member.photoUrl} alt={member.fullName} loading="lazy" decoding="async"
+                    className="profile-photo" onError={() => { setPhotoFailed(true); }} />
+                ) : (
+                  <div className="profile-initials">{member.firstName[0]}{member.lastName[0]}</div>
+                )}
+              </div>
+              <div className="profile-name">{member.fullName}</div>
+              <div className="profile-meta">
+                <span className="party-badge" style={{ backgroundColor: color }}>{member.party}</span>
+              </div>
+              <div className="profile-cst">{member.constituency || constituencyName}</div>
+              {member.offices.length > 0 && member.offices.map((o, i) => (
+                <a key={i} className="profile-office-badge"
                   href={viewToHash({ kind: 'offices' }, chamber, houseNo)}
                   onClick={(e) => { e.preventDefault(); onNavigate({ kind: 'offices' }); }}
-                  style={{ textDecoration: 'none', cursor: 'pointer' }}
-                >
+                  style={{ textDecoration: 'none', cursor: 'pointer', display: 'inline-block' }}>
                   {o}
                 </a>
               ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="tab-bar" role="tablist" aria-label="Member activity sections">
-        {TAB_CONFIG.map(({ key, label, Icon }, index) => {
-          const selected = activeTab === key;
-          return (
-            <button
-              key={key}
-              ref={(el) => { tabRefs.current[key] = el; }}
-              id={`tab-${key}`}
-              className={`tab-btn ${selected ? 'tab-btn--active' : ''}`}
-              onClick={() => { setActiveTab(key); }}
-              onKeyDown={(e) => { handleTabKeyDown(e, index); }}
-              role="tab"
-              type="button"
-              aria-selected={selected}
-              aria-controls={`tabpanel-${key}`}
-              tabIndex={selected ? 0 : -1}
-            >
-              <Icon className="tab-btn__icon" size={16} aria-hidden="true" />
-              <span className="tab-btn__label">{label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div
-        className="tab-content"
-        role="tabpanel"
-        id={`tabpanel-${activeTab}`}
-        aria-labelledby={`tab-${activeTab}`}
-        tabIndex={0}
-      >
-        {activeTab === 'overview' && (
-          <div className="overview-section">
-            <div className="overview-grid">
-              <div className="overview-card">
-                <div className="overview-card__label">Full Name</div>
-                <div className="overview-card__value">{member.fullName}</div>
-              </div>
-              <div className="overview-card">
-                <div className="overview-card__label">Party</div>
-                <div className="overview-card__value">
-                  <a 
-                    href={viewToHash({ kind: 'party', partyName: member.party }, chamber, houseNo)}
-                    style={{ color: 'var(--color-accent)', textDecoration: 'none', fontWeight: 600 }}
-                  >
-                    {member.party}
-                  </a>
-                </div>
-              </div>
-              <div className="overview-card">
-                <div className="overview-card__label">Constituency</div>
-                <div className="overview-card__value">
-                  <a 
-                    href={viewToHash({ kind: 'members', constituencyCode: member.constituencyCode, constituencyName: member.constituency || constituencyName }, chamber, houseNo)}
-                    style={{ color: 'var(--color-accent)', textDecoration: 'none', fontWeight: 600 }}
-                  >
-                    {member.constituency || constituencyName}
-                  </a>
-                </div>
-              </div>
-              <div className="overview-card">
-                <div className="overview-card__label">Member Since</div>
-                <div className="overview-card__value">{memberSince(member.memberCode)}</div>
-              </div>
-            </div>
-
-            {member.committees && member.committees.length > 0 && (
-              <>
-                <h3 className="overview-subtitle">Committee Memberships</h3>
-                <ul className="committee-list">
-                  {member.committees.map((c) => (
-                    <li key={c.uri} className="committee-item">
-                      <a
-                        href={viewToHash({ kind: 'committee', committeeUri: c.uri, committeeName: c.name }, chamber, houseNo)}
-                        className="committee-item__name committee-item__name--link"
-                        onClick={(e) => { e.preventDefault(); onNavigate({ kind: 'committee', committeeUri: c.uri, committeeName: c.name }); }}
-                      >
-                        {c.name}
-                      </a>
-                      <span className="committee-item__role">{c.role}</span>
-                    </li>
+              <hr className="profile-divider" />
+              <div className="profile-since-lbl">Member Since</div>
+              <div className="profile-since-val">{since}</div>
+              {summary && (
+                <div className="profile-stats">
+                  {[
+                    ['Debates', summary.totalDebates, 'debates'],
+                    ['Votes', summary.totalVotes, 'votes'],
+                    ['Questions', summary.totalQuestions, 'questions'],
+                    ['Bills', summary.totalBills, 'legislation'],
+                  ].map(([lbl, num, tab]) => (
+                    <button key={lbl as string} className="profile-stat"
+                      onClick={() => { setActiveTab(tab as ProfileTab); }}
+                      style={{ cursor: 'pointer', border: 'none', fontFamily: 'inherit' }}>
+                      <span className="profile-stat-num">{num}</span>
+                      <span className="profile-stat-lbl">{lbl}</span>
+                    </button>
                   ))}
-                </ul>
-              </>
-            )}
-
-            {summary && (
-              <>
-                <h3 className="overview-subtitle">Parliamentary Activity</h3>
-                <div className="activity-grid">
-                  <button className="activity-card" onClick={() => { setActiveTab('debates'); }} style={{ cursor: 'pointer', fontFamily: 'inherit' }}>
-                    <MessagesSquare className="activity-card__icon" size={22} aria-hidden="true" />
-                    <span className="activity-card__number">{summary.totalDebates}</span>
-                    <span className="activity-card__label">Debates</span>
-                  </button>
-                  <button className="activity-card" onClick={() => { setActiveTab('votes'); }} style={{ cursor: 'pointer', fontFamily: 'inherit' }}>
-                    <Vote className="activity-card__icon" size={22} aria-hidden="true" />
-                    <span className="activity-card__number">{summary.totalVotes}</span>
-                    <span className="activity-card__label">Votes</span>
-                  </button>
-                  <button className="activity-card" onClick={() => { setActiveTab('questions'); }} style={{ cursor: 'pointer', fontFamily: 'inherit' }}>
-                    <HelpCircle className="activity-card__icon" size={22} aria-hidden="true" />
-                    <span className="activity-card__number">{summary.totalQuestions}</span>
-                    <span className="activity-card__label">Questions</span>
-                  </button>
-                  <button className="activity-card" onClick={() => { setActiveTab('legislation'); }} style={{ cursor: 'pointer', fontFamily: 'inherit' }}>
-                    <ScrollText className="activity-card__icon" size={22} aria-hidden="true" />
-                    <span className="activity-card__number">{summary.totalBills}</span>
-                    <span className="activity-card__label">Bills</span>
-                  </button>
                 </div>
+              )}
+            </div>
+          </aside>
 
-                <h3 className="overview-subtitle">Voting Breakdown</h3>
-                {voteBreakdown ? (
-                  <VoteDonut breakdown={voteBreakdown} />
-                ) : breakdownLoading ? (
-                  <div className="loading-state" role="status" aria-live="polite">
-                    <div className="spinner" aria-hidden="true" />
-                    <span>Loading voting breakdown…</span>
+          {/* Main content */}
+          <div className="profile-main">
+            <div className="tab-bar" role="tablist" aria-label="Member activity sections">
+              {TAB_CONFIG.map(({ key, label, Icon }, index) => {
+                const selected = activeTab === key;
+                return (
+                  <button key={key}
+                    ref={(el) => { tabRefs.current[key] = el; }}
+                    id={`tab-${key}`}
+                    className={`tab-btn ${selected ? 'tab-btn--active' : ''}`}
+                    onClick={() => { setActiveTab(key); }}
+                    onKeyDown={(e) => { handleTabKeyDown(e, index); }}
+                    role="tab" type="button"
+                    aria-selected={selected}
+                    aria-controls={`tabpanel-${key}`}
+                    tabIndex={selected ? 0 : -1}>
+                    <Icon className="tab-btn__icon" size={16} aria-hidden="true" />
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="tab-content" role="tabpanel"
+              id={`tabpanel-${activeTab}`}
+              aria-labelledby={`tab-${activeTab}`}
+              tabIndex={0}>
+
+              {activeTab === 'overview' && (
+                <div>
+                  {/* Overview info cards */}
+                  <div className="overview-grid" style={{ marginBottom: 24 }}>
+                    <div className="overview-card">
+                      <div className="overview-card__label">Party</div>
+                      <div className="overview-card__value">
+                        <a href={viewToHash({ kind: 'party', partyName: member.party }, chamber, houseNo)}
+                          style={{ color: 'var(--g700)', textDecoration: 'none', fontWeight: 600 }}>
+                          {member.party}
+                        </a>
+                      </div>
+                    </div>
+                    <div className="overview-card">
+                      <div className="overview-card__label">Constituency</div>
+                      <div className="overview-card__value">
+                        <a href={viewToHash({ kind: 'members', constituencyCode: member.constituencyCode, constituencyName: member.constituency || constituencyName }, chamber, houseNo)}
+                          style={{ color: 'var(--g700)', textDecoration: 'none', fontWeight: 600 }}>
+                          {member.constituency || constituencyName}
+                        </a>
+                      </div>
+                    </div>
                   </div>
-                ) : null}
-              </>
-            )}
-          </div>
-        )}
 
-        {activeTab === 'debates' && <DebatesList memberUri={memberUri} chamber={chamber} houseNo={houseNo} />}
-        {activeTab === 'votes' && <VotesList memberUri={memberUri} chamber={chamber} houseNo={houseNo} />}
-        {activeTab === 'questions' && <QuestionsList memberUri={memberUri} chamber={chamber} houseNo={houseNo} />}
-        {activeTab === 'legislation' && <BillsList memberUri={memberUri} chamber={chamber} houseNo={houseNo} />}
+                  {member.committees && member.committees.length > 0 && (
+                    <>
+                      <h3 className="overview-subtitle">Committee Memberships</h3>
+                      <ul className="committee-list">
+                        {member.committees.map((c) => (
+                          <li key={c.uri} className="committee-item">
+                            <a href={viewToHash({ kind: 'committee', committeeUri: c.uri, committeeName: c.name }, chamber, houseNo)}
+                              className="committee-item__name committee-item__name--link"
+                              onClick={(e) => { e.preventDefault(); onNavigate({ kind: 'committee', committeeUri: c.uri, committeeName: c.name }); }}>
+                              {c.name}
+                            </a>
+                            <span className="committee-item__role">{c.role}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+
+                  {summary && (
+                    <>
+                      <h3 className="overview-subtitle">Voting Breakdown</h3>
+                      {voteBreakdown ? (
+                        <VoteDonut breakdown={voteBreakdown} />
+                      ) : breakdownLoading ? (
+                        <div className="loading-state" role="status">
+                          <div className="spinner" aria-hidden="true" />
+                          <span>Loading voting breakdown…</span>
+                        </div>
+                      ) : null}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'debates' && <DebatesList memberUri={memberUri} chamber={chamber} houseNo={houseNo} />}
+              {activeTab === 'votes' && <VotesList memberUri={memberUri} chamber={chamber} houseNo={houseNo} />}
+              {activeTab === 'questions' && <QuestionsList memberUri={memberUri} chamber={chamber} houseNo={houseNo} />}
+              {activeTab === 'legislation' && <BillsList memberUri={memberUri} chamber={chamber} houseNo={houseNo} />}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
