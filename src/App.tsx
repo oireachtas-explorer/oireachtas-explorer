@@ -356,6 +356,10 @@ export default function App() {
                 <MemberCard
                   key={m.memberCode}
                   member={m}
+                  chamber={chamber}
+                  houseNo={houseNo}
+                  constituencyCode={m.constituencyCode}
+                  constituencyName={m.constituency}
                   onClick={() => { handleSelectMember(m.uri, m.fullName, m.constituencyCode, m.constituency); }}
                 />
               ))}
