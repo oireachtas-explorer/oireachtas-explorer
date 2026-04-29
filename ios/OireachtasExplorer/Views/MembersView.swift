@@ -61,6 +61,13 @@ struct MembersView: View {
             }
             .background(Color.cream)
             .navigationBarHidden(true)
+            .refreshable {
+                if selectedConstituency == nil {
+                    await vm.loadConstituencies()
+                } else if let c = selectedConstituency {
+                    await vm.loadMembers(for: c)
+                }
+            }
         }
     }
 
@@ -173,7 +180,7 @@ struct ConstituencyDetailView: View {
                 Text(constituency.name)
                     .font(.dmSerif(size: 24))
                     .foregroundColor(Color.headingText)
-                Text("\(members.count) member\(members.count == 1 ? "" : "s") · 33rd Dáil")
+                Text("\(members.count) member\(members.count == 1 ? "" : "s") · 34th Dáil")
                     .font(.inter(size: 13))
                     .foregroundColor(Color.secondaryText)
             }

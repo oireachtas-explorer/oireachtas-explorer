@@ -37,6 +37,9 @@ struct HomeView: View {
             }
             .background(Color.cream)
             .navigationBarHidden(true)
+            .refreshable {
+                await vm.load()
+            }
         }
         .task { await vm.load() }
     }
@@ -74,21 +77,24 @@ struct HomeView: View {
                     .lineSpacing(4)
                     .padding(.bottom, 24)
 
-                // Search bar (decorative — navigation is via Members tab)
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.white.opacity(0.5))
-                        .font(.system(size: 15))
-                    Text("Search your constituency…")
-                        .font(.inter(size: 15))
-                        .foregroundColor(.white.opacity(0.4))
-                    Spacer()
+                // Search bar navigation
+                NavigationLink(destination: MembersView()) {
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.white.opacity(0.5))
+                            .font(.system(size: 15))
+                        Text("Search your constituency…")
+                            .font(.inter(size: 15))
+                            .foregroundColor(.white.opacity(0.4))
+                        Spacer()
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 13)
+                    .background(Color.white.opacity(0.12))
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(Color.white.opacity(0.2), lineWidth: 1.5))
                 }
-                .padding(.horizontal, 18)
-                .padding(.vertical, 13)
-                .background(Color.white.opacity(0.12))
-                .clipShape(Capsule())
-                .overlay(Capsule().stroke(Color.white.opacity(0.2), lineWidth: 1.5))
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 20)
             .padding(.top, 36)
@@ -133,11 +139,22 @@ struct HomeView: View {
                 ErrorBanner(message: err)
             } else {
                 ForEach(vm.recentDebates) { debate in
-                    DebateItemRow(
-                        title: debate.title,
-                        date: debate.formattedDate,
-                        typeLabel: friendlyType(debate.debateType)
-                    )
+                    if let xmlUri = debate.rawXmlUri, let sectionUri = debate.debateSectionUri {
+                        NavigationLink(destination: DebateTranscriptView(title: debate.title, xmlUri: xmlUri, debateSectionUri: sectionUri, focusMemberUri: nil)) {
+                            DebateItemRow(
+                                title: debate.title,
+                                date: debate.formattedDate,
+                                typeLabel: friendlyType(debate.debateType)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        DebateItemRow(
+                            title: debate.title,
+                            date: debate.formattedDate,
+                            typeLabel: friendlyType(debate.debateType)
+                        )
+                    }
                 }
             }
         }

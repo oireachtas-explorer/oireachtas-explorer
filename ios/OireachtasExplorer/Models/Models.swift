@@ -370,6 +370,8 @@ struct Debate: Identifiable {
     let debateType: String
     let chamber: String
     let xmlUri: String?
+    let rawXmlUri: String?
+    let debateSectionUri: String?
 
     var formattedDate: String { formatRawDate(date) }
     var monthKey: String { String(date.prefix(7)) }
@@ -405,6 +407,8 @@ struct Question: Identifiable {
     let questionText: String
     let department: String
     let xmlUri: String?
+    let rawXmlUri: String?
+    let debateSectionUri: String?
 
     var formattedDate: String { formatRawDate(date) }
     var typeLabel: String { questionType.capitalized }
@@ -444,3 +448,7 @@ func memberPhotoUrl(_ memberUri: String) -> String {
 
 let currentDailNo = 34
 let currentDailChamberUri = "https://data.oireachtas.ie/ie/oireachtas/house/dail/\(currentDailNo)"
+
+extension URL: @retroactive Identifiable {
+    public var id: String { absoluteString }
+}

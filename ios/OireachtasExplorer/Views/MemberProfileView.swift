@@ -9,15 +9,28 @@ final class MemberProfileViewModel: ObservableObject {
     @Published var votes: [Division] = []
     @Published var questions: [Question] = []
     @Published var bills: [Bill] = []
+    @Published var counts: (debates: Int, votes: Int, questions: Int, bills: Int) = (0, 0, 0, 0)
     @Published var loadingDebates = false
     @Published var loadingVotes = false
     @Published var loadingQuestions = false
     @Published var loadingBills = false
+    @Published var loadingCounts = false
 
     var debatesLoaded = false
     var votesLoaded = false
     var questionsLoaded = false
     var billsLoaded = false
+    var countsLoaded = false
+
+    func loadCounts(memberUri: String) async {
+        guard !countsLoaded else { return }
+        countsLoaded = true
+        loadingCounts = true
+        if let c = try? await OireachtasAPI.shared.memberCounts(memberUri: memberUri) {
+            counts = c
+        }
+        loadingCounts = false
+    }
 
     func loadDebates(memberUri: String) async {
         guard !debatesLoaded else { return }
@@ -66,23 +79,28 @@ struct MemberProfileView: View {
     let member: Member
     @StateObject private var vm = MemberProfileViewModel()
     @State private var activeTab = "Overview"
-    @State private var pdfURL: URL?
+    @State private var activeURL: URL?
 
     private let tabs = ["Overview", "Debates", "Votes", "Questions", "Legislation"]
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                profileHeader
-                tabBar
-                tabContent
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 0) {
+                    profileHeader
+                    tabBar
+                    tabContent
+                }
             }
-        }
-        .background(Color.cream)
-        .navigationTitle("")
-        .navigationBarTitleDisplayMode(.inline)
-        .sheet(item: $pdfURL) { url in
-            SafariView(url: url).ignoresSafeArea()
+            .background(Color.cream)
+            .refreshable {
+                loadTabData(activeTab, force: true)
+            }
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .sheet(item: $activeURL) { url in
+                SafariView(url: url).ignoresSafeArea()
+            }
         }
     }
 
@@ -104,7 +122,11 @@ struct MemberProfileView: View {
                             .font(.dmSerif(size: 18))
                             .foregroundColor(Color.headingText)
                         HStack(spacing: 6) {
-                            PartyBadge(party: member.party, small: true)
+                            NavigationLink(destination: FilteredMembersView(filter: .party(member.party))) {
+                                PartyBadge(party: member.party, small: true)
+                            }
+                            .buttonStyle(.plain)
+                            
                             Text(member.constituency)
                                 .font(.inter(size: 12))
                                 .foregroundColor(Color.secondaryText)
@@ -166,13 +188,24 @@ struct MemberProfileView: View {
         .onAppear { loadTabData("Overview") }
     }
 
-    private func loadTabData(_ tab: String) {
+    private func loadTabData(_ tab: String, force: Bool = false) {
         let uri = member.uri
         switch tab {
-        case "Debates":    Task { await vm.loadDebates(memberUri: uri) }
-        case "Votes":      Task { await vm.loadVotes(memberUri: uri) }
-        case "Questions":  Task { await vm.loadQuestions(memberUri: uri) }
-        case "Legislation": Task { await vm.loadBills(memberUri: uri) }
+        case "Overview":
+            if force { vm.countsLoaded = false }
+            Task { await vm.loadCounts(memberUri: uri) }
+        case "Debates":
+            if force { vm.debatesLoaded = false }
+            Task { await vm.loadDebates(memberUri: uri) }
+        case "Votes":
+            if force { vm.votesLoaded = false }
+            Task { await vm.loadVotes(memberUri: uri) }
+        case "Questions":
+            if force { vm.questionsLoaded = false }
+            Task { await vm.loadQuestions(memberUri: uri) }
+        case "Legislation":
+            if force { vm.billsLoaded = false }
+            Task { await vm.loadBills(memberUri: uri) }
         default: break
         }
     }
@@ -199,10 +232,10 @@ struct MemberProfileView: View {
                 columns: [GridItem(.flexible()), GridItem(.flexible())],
                 spacing: 8
             ) {
-                overviewStatCard("Debates",   value: "—")
-                overviewStatCard("Votes",     value: "—")
-                overviewStatCard("Questions", value: "—")
-                overviewStatCard("Bills",     value: "—")
+                overviewStatCard("Debates",   value: countLabel(vm.counts.debates))
+                overviewStatCard("Votes",     value: countLabel(vm.counts.votes))
+                overviewStatCard("Questions", value: countLabel(vm.counts.questions))
+                overviewStatCard("Bills",     value: countLabel(vm.counts.bills))
             }
             .padding(16)
 
@@ -212,14 +245,22 @@ struct MemberProfileView: View {
                         .font(.dmSerif(size: 18))
                         .foregroundColor(Color.headingText)
                     ForEach(member.committees) { c in
-                        HStack(spacing: 8) {
-                            Circle()
-                                .fill(partyColor(member.party))
-                                .frame(width: 6, height: 6)
-                            Text(c.name)
-                                .font(.inter(size: 13))
-                                .foregroundColor(Color.bodyText)
+                        NavigationLink(destination: FilteredMembersView(filter: .committee(c.name))) {
+                            HStack(spacing: 8) {
+                                Circle()
+                                    .fill(partyColor(member.party))
+                                    .frame(width: 6, height: 6)
+                                Text(c.name)
+                                    .font(.inter(size: 13))
+                                    .foregroundColor(Color.bodyText)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(Color.mutedText)
+                            }
+                            .padding(.vertical, 4)
                         }
+                        .buttonStyle(.plain)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -227,6 +268,12 @@ struct MemberProfileView: View {
                 .padding(.bottom, 16)
             }
         }
+    }
+
+    private func countLabel(_ n: Int) -> String {
+        // Show a dash while counts are loading rather than a misleading "0"
+        if vm.loadingCounts && n == 0 { return "…" }
+        return "\(n)"
     }
 
     private func overviewStatCard(_ label: String, value: String) -> some View {
@@ -249,15 +296,35 @@ struct MemberProfileView: View {
     // MARK: - Debates Tab
 
     private var debatesTab: some View {
-        VStack(spacing: 8) {
+        LazyVStack(spacing: 8) {
             if vm.loadingDebates {
                 LoadingView()
             } else if vm.debates.isEmpty {
                 emptyState("No debates found")
             } else {
                 ForEach(vm.debates) { d in
-                    DebateItemRow(title: d.title, date: d.formattedDate, typeLabel: d.debateType)
-                        .padding(.horizontal, 16)
+                    VStack(alignment: .leading, spacing: 0) {
+                        DebateItemRow(title: d.title, date: d.formattedDate, typeLabel: d.debateType)
+                        
+                        if let xmlUri = d.rawXmlUri, let sectionUri = d.debateSectionUri {
+                            NavigationLink(destination: DebateTranscriptView(title: d.title, xmlUri: xmlUri, debateSectionUri: sectionUri, focusMemberUri: member.uri)) {
+                                Text("View Transcript")
+                                    .font(.inter(size: 12, weight: .semibold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 7)
+                                    .background(Color.darkGreen)
+                                    .clipShape(Capsule())
+                                    .padding(.horizontal, 14)
+                                    .padding(.bottom, 14)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.cardBorder, lineWidth: 1))
+                    .padding(.horizontal, 16)
                 }
             }
         }
@@ -267,7 +334,7 @@ struct MemberProfileView: View {
     // MARK: - Votes Tab
 
     private var votesTab: some View {
-        VStack(spacing: 8) {
+        LazyVStack(spacing: 8) {
             if vm.loadingVotes {
                 LoadingView()
             } else if vm.votes.isEmpty {
@@ -314,7 +381,10 @@ struct MemberProfileView: View {
                 }
             }
             Spacer()
+            
+
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
         .background(Color.white)
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -327,7 +397,7 @@ struct MemberProfileView: View {
     // MARK: - Questions Tab
 
     private var questionsTab: some View {
-        VStack(spacing: 10) {
+        LazyVStack(spacing: 10) {
             if vm.loadingQuestions {
                 LoadingView()
             } else if vm.questions.isEmpty {
@@ -404,7 +474,27 @@ struct MemberProfileView: View {
                     alignment: .top
                 )
             }
+            
+            // Link to question
+            if let xmlUri = q.rawXmlUri, let sectionUri = q.debateSectionUri {
+                NavigationLink(destination: DebateTranscriptView(title: q.questionText, xmlUri: xmlUri, debateSectionUri: sectionUri, focusMemberUri: member.uri)) {
+                    HStack {
+                        Text("View Full Question & Response")
+                            .font(.inter(size: 12, weight: .semibold))
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .bold))
+                    }
+                    .foregroundColor(Color.darkGreen)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .background(Color.white)
+                    .overlay(Rectangle().frame(height: 1).foregroundColor(Color.cardBorder), alignment: .top)
+                }
+                .buttonStyle(.plain)
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -416,7 +506,7 @@ struct MemberProfileView: View {
     // MARK: - Legislation Tab
 
     private var legislationTab: some View {
-        VStack(spacing: 12) {
+        LazyVStack(spacing: 12) {
             if vm.loadingBills {
                 LoadingView()
             } else if vm.bills.isEmpty {
@@ -489,7 +579,7 @@ struct MemberProfileView: View {
             HStack(spacing: 10) {
                 if let pdfUriStr = bill.pdfUri, let pdfUrl = URL(string: pdfUriStr) {
                     Button {
-                        pdfURL = pdfUrl
+                        activeURL = pdfUrl
                     } label: {
                         Label("View Bill PDF", systemImage: "doc.fill")
                             .font(.inter(size: 13, weight: .semibold))
@@ -515,6 +605,7 @@ struct MemberProfileView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .overlay(Rectangle().frame(height: 1).foregroundColor(Color.cardBorder), alignment: .top)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.white)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(

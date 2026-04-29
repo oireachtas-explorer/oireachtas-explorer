@@ -78,7 +78,7 @@ actor OireachtasAPI {
         if let s = dateStart  { params["date_start"] = s }
         if let e = dateEnd    { params["date_end"] = e }
         let result: APIResult<DebateItem> = try await fetch("debates", params: params)
-        let total = result.head?.counts?.totalCount ?? result.results.count
+        let total = result.head?.counts?.resultCount ?? result.results.count
         return (result.results.compactMap { normalizeDebate($0.debate) }, total)
     }
 
@@ -117,17 +117,18 @@ actor OireachtasAPI {
     // much cheaper than loading the full lists just to count them.
 
     func memberCounts(memberUri: String) async throws -> (debates: Int, votes: Int, questions: Int, bills: Int) {
-        async let d: APIResult<DebateItem> = fetch("debates", params: ["member_id": memberUri, "limit": "1"])
-        async let v: APIResult<DivisionItem> = fetch("divisions", params: ["member_id": memberUri, "limit": "1"])
-        async let q: APIResult<QuestionItem> = fetch("questions", params: ["member_id": memberUri, "qtype": "oral,written", "limit": "1"])
-        async let b: APIResult<LegislationItem> = fetch("legislation", params: ["member_id": memberUri, "limit": "1"])
+        let params = ["member_id": memberUri, "house_no": "\(currentDailNo)", "limit": "1"]
+        async let d: APIResult<DebateItem> = fetch("debates", params: params)
+        async let v: APIResult<DivisionItem> = fetch("divisions", params: params)
+        async let q: APIResult<QuestionItem> = fetch("questions", params: params)
+        async let b: APIResult<LegislationItem> = fetch("legislation", params: params)
 
         let (dr, vr, qr, br) = try await (d, v, q, b)
         return (
-            dr.head?.counts?.totalCount ?? dr.results.count,
-            vr.head?.counts?.totalCount ?? vr.results.count,
-            qr.head?.counts?.totalCount ?? qr.results.count,
-            br.head?.counts?.totalCount ?? br.results.count
+            dr.head?.counts?.resultCount ?? dr.results.count,
+            vr.head?.counts?.resultCount ?? vr.results.count,
+            qr.head?.counts?.resultCount ?? qr.results.count,
+            br.head?.counts?.resultCount ?? br.results.count
         )
     }
 
@@ -224,10 +225,13 @@ actor OireachtasAPI {
         guard let date = raw.date else { return nil }
         let sections = (raw.debateSections ?? []).compactMap(\.debateSection)
         let title = sections.first?.showAs ?? raw.debateType?.capitalized ?? "Debate"
-        let xmlUri = raw.formats?.xml?.uri ?? sections.first?.formats?.xml?.uri
+        let rawXml = raw.formats?.xml?.uri ?? sections.first?.formats?.xml?.uri
+        let xmlUri = rawXml.map { toWebUrl($0) }
+        let sectionUri = sections.first?.uri ?? raw.uri
         return Debate(
-            id: raw.uri, uri: raw.uri, date: date, title: title,
-            debateType: raw.debateType ?? "", chamber: "", xmlUri: xmlUri
+            id: sectionUri, uri: raw.uri, date: date, title: title,
+            debateType: raw.debateType ?? "", chamber: "", xmlUri: xmlUri,
+            rawXmlUri: rawXml, debateSectionUri: sectionUri
         )
     }
 
@@ -251,12 +255,14 @@ actor OireachtasAPI {
     private func normalizeQuestion(_ raw: QuestionRaw) -> Question? {
         guard let date = raw.date else { return nil }
         let text = raw.showAs ?? "Question \(raw.questionNumber.map(String.init) ?? "")"
+        let rawXml = raw.debateSection?.formats?.xml?.uri ?? raw.uri
+        let xmlUri = toWebUrl(rawXml)
         return Question(
             id: raw.uri, uri: raw.uri, date: date,
             questionType: raw.questionType ?? "written",
             questionText: text,
             department: raw.to?.showAs ?? "",
-            xmlUri: raw.debateSection?.formats?.xml?.uri
+            xmlUri: xmlUri, rawXmlUri: rawXml, debateSectionUri: raw.debateSection?.uri
         )
     }
 
@@ -284,6 +290,36 @@ actor OireachtasAPI {
             sponsors: raw.sponsors?.compactMap { $0.sponsor?.by?.showAs } ?? [],
             stages: stages, pdfUri: pdfUri
         )
+    }
+    // MARK: - Helpers
+    
+    private func toWebUrl(_ dataUri: String) -> String {
+        // Handle both /ie/oireachtas/ and /akn/ie/ patterns
+        var web = dataUri
+        
+        if web.contains("debateRecord") {
+            web = web.replacingOccurrences(of: "data.oireachtas.ie/ie/oireachtas/debateRecord", with: "www.oireachtas.ie/en/debates/debate")
+            web = web.replacingOccurrences(of: "data.oireachtas.ie/akn/ie/debateRecord", with: "www.oireachtas.ie/en/debates/debate")
+            web = web.replacingOccurrences(of: "/debate/main", with: "/")
+            web = web.replacingOccurrences(of: ".xml", with: "/")
+        } else if web.contains("/question/") {
+            web = web.replacingOccurrences(of: "data.oireachtas.ie/ie/oireachtas/question", with: "www.oireachtas.ie/en/debates/question")
+            web = web.replacingOccurrences(of: "data.oireachtas.ie/akn/ie/question", with: "www.oireachtas.ie/en/debates/question")
+            web = web.replacingOccurrences(of: "pq_", with: "")
+        }
+        
+        // Clean up any double slashes introduced by replacements (except https://)
+        if web.contains("www.oireachtas.ie") {
+            let protocolPart = "https://"
+            let pathPart = web.replacingOccurrences(of: protocolPart, with: "")
+            let cleanedPath = pathPart.replacingOccurrences(of: "//", with: "/")
+            web = protocolPart + cleanedPath
+            
+            // Ensure trailing slash for the website URLs
+            if !web.hasSuffix("/") { web += "/" }
+        }
+        
+        return web
     }
 }
 

@@ -15,6 +15,10 @@ struct ContentView: View {
                 .tabItem {
                     Label("Debates", systemImage: "bubble.left.and.bubble.right.fill")
                 }
+            AboutView()
+                .tabItem {
+                    Label("About", systemImage: "info.circle.fill")
+                }
         }
         .tint(Color.darkGreen)
         .background(Color.cream)

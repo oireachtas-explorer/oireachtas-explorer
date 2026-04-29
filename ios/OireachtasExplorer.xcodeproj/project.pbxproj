@@ -19,6 +19,11 @@
 		AA000000000000000000C010 /* PartyBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000B010 /* PartyBadge.swift */; };
 		AA000000000000000000C011 /* AvatarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000B011 /* AvatarView.swift */; };
 		AA000000000000000000C012 /* StageDots.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000B012 /* StageDots.swift */; };
+		AA000000000000000000C013 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000B013 /* AboutView.swift */; };
+		AA000000000000000000C022 /* TranscriptAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000B022 /* TranscriptAPI.swift */; };
+		AA000000000000000000C023 /* DebateTranscriptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000B023 /* DebateTranscriptView.swift */; };
+		AA000000000000000000C024 /* FilteredMembersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000B024 /* FilteredMembersView.swift */; };
+		AA000000000000000000C025 /* MemberProfileLoaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000B025 /* MemberProfileLoaderView.swift */; };
 		AA000000000000000000C020 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000B020 /* Assets.xcassets */; };
 		AA000000000000000000C021 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000B021 /* Preview Assets.xcassets */; };
 /* End PBXBuildFile section */
@@ -37,6 +42,11 @@
 		AA000000000000000000B010 /* PartyBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PartyBadge.swift; sourceTree = "<group>"; };
 		AA000000000000000000B011 /* AvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarView.swift; sourceTree = "<group>"; };
 		AA000000000000000000B012 /* StageDots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StageDots.swift; sourceTree = "<group>"; };
+		AA000000000000000000B013 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
+		AA000000000000000000B022 /* TranscriptAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptAPI.swift; sourceTree = "<group>"; };
+		AA000000000000000000B023 /* DebateTranscriptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebateTranscriptView.swift; sourceTree = "<group>"; };
+		AA000000000000000000B024 /* FilteredMembersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilteredMembersView.swift; sourceTree = "<group>"; };
+		AA000000000000000000B025 /* MemberProfileLoaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberProfileLoaderView.swift; sourceTree = "<group>"; };
 		AA000000000000000000B020 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AA000000000000000000B021 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -52,7 +62,7 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		AA000000000000000000A004 /* = */ = {
+		AA000000000000000000A004 = {
 			isa = PBXGroup;
 			children = (
 				AA000000000000000000A020 /* OireachtasExplorer */,
@@ -95,6 +105,7 @@
 			isa = PBXGroup;
 			children = (
 				AA000000000000000000B005 /* OireachtasAPI.swift */,
+				AA000000000000000000B022 /* TranscriptAPI.swift */,
 			);
 			path = API;
 			sourceTree = "<group>";
@@ -106,6 +117,10 @@
 				AA000000000000000000B007 /* MembersView.swift */,
 				AA000000000000000000B008 /* DebatesView.swift */,
 				AA000000000000000000B009 /* MemberProfileView.swift */,
+				AA000000000000000000B013 /* AboutView.swift */,
+				AA000000000000000000B023 /* DebateTranscriptView.swift */,
+				AA000000000000000000B024 /* FilteredMembersView.swift */,
+				AA000000000000000000B025 /* MemberProfileLoaderView.swift */,
 				AA000000000000000000A024 /* Components */,
 			);
 			path = Views;
@@ -157,7 +172,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1500;
-				LastUpgradeCheck = 1500;
+				LastUpgradeCheck = 2640;
 				TargetAttributes = {
 					AA000000000000000000A002 = {
 						CreatedOnToolsVersion = 15.0;
@@ -211,6 +226,11 @@
 				AA000000000000000000C010 /* PartyBadge.swift in Sources */,
 				AA000000000000000000C011 /* AvatarView.swift in Sources */,
 				AA000000000000000000C012 /* StageDots.swift in Sources */,
+				AA000000000000000000C013 /* AboutView.swift in Sources */,
+				AA000000000000000000C022 /* TranscriptAPI.swift in Sources */,
+				AA000000000000000000C023 /* DebateTranscriptView.swift in Sources */,
+				AA000000000000000000C024 /* FilteredMembersView.swift in Sources */,
+				AA000000000000000000C025 /* MemberProfileLoaderView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -274,6 +294,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -328,6 +349,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				VALIDATE_PRODUCT = YES;
@@ -415,7 +437,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
 	};
 	rootObject = AA000000000000000000A001 /* Project object */;
 }

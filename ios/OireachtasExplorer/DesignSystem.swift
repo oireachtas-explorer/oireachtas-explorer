@@ -1,4 +1,5 @@
 import SwiftUI
+import SafariServices
 
 // MARK: - Color Helpers
 
@@ -164,6 +165,7 @@ struct DebateItemRow: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .cardStyle()
     }
@@ -229,4 +231,14 @@ struct AppHeader: View {
         .padding(.vertical, 12)
         .background(Color.forestGreen)
     }
+}
+
+// MARK: - SafariView Wrapper
+
+struct SafariView: UIViewControllerRepresentable {
+    let url: URL
+    func makeUIViewController(context: Context) -> SFSafariViewController {
+        SFSafariViewController(url: url)
+    }
+    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
 }
