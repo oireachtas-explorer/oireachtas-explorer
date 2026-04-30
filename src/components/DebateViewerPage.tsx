@@ -56,7 +56,7 @@ export function DebateViewerPage({ xmlUri, debateSectionUri, title, focusMemberU
         ← Back
       </button>
 
-      <h1 style={{ fontSize: '2rem', marginBottom: '1rem', color: 'var(--color-text-primary)' }}>{title}</h1>
+      <h1 style={{ fontSize: '2rem', marginBottom: '1rem', color: 'var(--color-text-primary)', overflowWrap: 'break-word', wordBreak: 'break-word' }}>{title}</h1>
 
       <div style={{ padding: '1rem', background: 'var(--color-bg-secondary)', borderRadius: '8px', marginBottom: '2rem' }}>
         <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem' }}>Participants</h3>

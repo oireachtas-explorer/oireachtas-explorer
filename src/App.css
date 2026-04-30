@@ -90,7 +90,7 @@ body {
 .page-transition { animation: fadeIn .25s ease; }
 
 /* ── App shell ── */
-.app { min-height: 100vh; display: flex; flex-direction: column; }
+.app { min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
 
 .skip-link {
   position: absolute; top: -40px; left: 8px; padding: 10px 16px;
@@ -1027,7 +1027,18 @@ body {
   .vote-donut { flex-direction: column; align-items: center; }
 }
 @media (max-width: 640px) {
+  .app-header {
+    height: auto;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+    gap: 12px;
+  }
   .app-header__search { display: none; }
+  .app-header__subtitle-container {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .app-header__title { font-size: 16px; }
   .hero h1 { font-size: 30px; }
   .stats-bar { flex-wrap: wrap; }
   .stat-item { flex: 1 0 45%; border-right: none; border-bottom: 1px solid var(--border); }
