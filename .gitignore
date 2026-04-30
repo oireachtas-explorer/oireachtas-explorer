@@ -31,6 +31,20 @@ lerna-debug.log*
 *.local
 *.pem
 *.key
+*.p12
+*.pfx
+*.cer
+*.crt
+*.der
+*.jks
+service-account*.json
+credentials.json
+auth.json
+.netrc
+.npmrc
+id_rsa*
+id_ed25519*
+*.ppk
 
 # ── Testing / coverage ──────────────────────────────────────────────
 coverage/
@@ -85,6 +99,10 @@ local.properties
 .cxx/
 *.keystore
 keystore.properties
+signing.properties
+release.properties
+secrets.xml
+google-services.json
 
 # iOS
 ios/build/
@@ -93,3 +111,14 @@ ios/*.xcworkspace
 ios/*.xcodeproj/xcuserdata/
 ios/*.xcodeproj/project.xcworkspace/xcuserdata/
 ios/*.xcworkspace/xcuserdata/
+*.mobileprovision
+*.provisionprofile
+GoogleService-Info.plist
+.firebaserc
+
+# Fastlane
+fastlane/.env*
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
