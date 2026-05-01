@@ -255,9 +255,11 @@ export function DebateViewerPage({ xmlUri, debateSectionUri, title, focusMemberU
                       className="save-btn--compact"
                     />
                   </div>
-                  {s.paragraphs.map((p, i) => (
-                    <p key={i} className="transcript-viewer__paragraph" style={{ marginBottom: '1rem', lineHeight: 1.6, color: 'var(--color-text-secondary)', fontSize: '1.05rem' }}>{highlight(p)}</p>
-                  ))}
+                  <div className="transcript-segment__text-card">
+                    {s.paragraphs.map((p, i) => (
+                      <p key={i} className="transcript-viewer__paragraph" style={{ marginBottom: i < s.paragraphs.length - 1 ? '1rem' : 0, lineHeight: 1.6, color: 'var(--color-text-secondary)', fontSize: '1.05rem' }}>{highlight(p)}</p>
+                    ))}
+                  </div>
                 </div>
               </div>
             );

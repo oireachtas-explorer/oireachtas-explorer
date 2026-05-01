@@ -1172,11 +1172,16 @@ body {
 .transcript-segment__avatar img { width: 100%; height: 100%; object-fit: cover; }
 .transcript-segment__body { flex: 1; min-width: 0; }
 .transcript-segment__speaker { display: block; margin-bottom: 2px; font-size: 14px; font-weight: 700; color: var(--text); }
-.transcript-viewer__paragraph {
+.transcript-segment__text-card {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 0 var(--r-lg) var(--r-lg) var(--r-lg);
-  padding: 14px 18px; font-size: 15px; line-height: 1.7; color: var(--text2);
-  box-shadow: var(--sh-sm); margin-bottom: 0.75rem;
+  padding: 14px 18px; box-shadow: var(--sh-sm); margin-bottom: 0.75rem;
+}
+.transcript-viewer__paragraph {
+  font-size: 15px; line-height: 1.7; color: var(--text2); margin: 0 0 0.75rem;
+}
+.transcript-viewer__paragraph:last-child {
+  margin-bottom: 0;
 }
 .transcript-viewer__paragraph mark {
   background: var(--gold-l); color: var(--text); padding: 0 2px; border-radius: 3px;

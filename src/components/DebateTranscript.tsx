@@ -65,9 +65,11 @@ export function DebateTranscript({ xmlUri, debateSectionUri, memberUri, onClose 
               </div>
               <div className="transcript-segment__body">
                 <strong className="transcript-segment__speaker">{s.speakerName}</strong>
-                {s.paragraphs.map((p, i) => (
-                  <p key={i} className="transcript-viewer__paragraph">{p}</p>
-                ))}
+                <div className="transcript-segment__text-card">
+                  {s.paragraphs.map((p, i) => (
+                    <p key={i} className="transcript-viewer__paragraph">{p}</p>
+                  ))}
+                </div>
               </div>
             </div>
           ))}

@@ -8,6 +8,7 @@ const TRANSCRIPT_API_BASE = (import.meta.env.VITE_TRANSCRIPT_API_BASE as string 
 
 const xmlRequestCache = new Map<string, Promise<string>>();
 const transcriptRequestCache = new Map<string, Promise<SpeechSegment[]>>();
+const TRANSCRIPT_PARSE_VERSION = 'v2';
 
 export class TranscriptFetchError extends Error {
   sourceUrl: string;
@@ -68,6 +69,19 @@ function parseAkomaNtosoXml(xmlString: string, debateSectionUri: string, memberU
 
   if (!targetSection) return [];
 
+  function childElementText(parent: Element, tagNamePart: string): string {
+    for (const child of Array.from(parent.children)) {
+      if (child.tagName.toLowerCase().includes(tagNamePart.toLowerCase())) {
+        return child.textContent.replace(/\s+/g, ' ').trim();
+      }
+    }
+    return '';
+  }
+
+  function fallbackSpeakerId(name: string): string {
+    return `from:${name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '')}`;
+  }
+
   const speeches = targetSection.getElementsByTagName('*');
   const extractedSegments: SpeechSegment[] = [];
 
@@ -76,10 +90,12 @@ function parseAkomaNtosoXml(xmlString: string, debateSectionUri: string, memberU
       if (byRef && el.getAttribute('by') !== byRef) continue;
 
       const rawBy = el.getAttribute('by') ?? '';
-      const speakerId = rawBy.replace('#', '');
+      const registrySpeakerId = rawBy.replace('#', '');
+      const fromName = childElementText(el, 'from');
+      const speakerId = registrySpeakerId || (fromName ? fallbackSpeakerId(fromName) : '');
       const meta = speakerRegistry[speakerId];
 
-      const speakerName = meta ? meta.name : (speakerId.replace(/_/g, ' ') || 'Unknown Speaker');
+      const speakerName = meta ? meta.name : (fromName || speakerId.replace(/_/g, ' ') || 'Unknown Speaker');
       const speakerUri = meta ? meta.uri : null;
 
       const allDescendants = el.getElementsByTagName('*');
@@ -200,14 +216,15 @@ export async function fetchDebateTranscript(
   memberUri?: string,
   signal?: AbortSignal
 ): Promise<SpeechSegment[]> {
-  const cacheKey = `${debateSectionUri}::${memberUri ?? 'ALL'}`;
+  const allCacheKey = `${TRANSCRIPT_PARSE_VERSION}::${debateSectionUri}::ALL`;
+  const cacheKey = `${TRANSCRIPT_PARSE_VERSION}::${debateSectionUri}::${memberUri ?? 'ALL'}`;
 
   // Avoid network totally if indexed exactly for this URL/Member combo!
   const cached = await getTranscript(cacheKey);
   if (cached) return cached;
 
   if (memberUri) {
-    const allCached = await getTranscript(`${debateSectionUri}::ALL`);
+    const allCached = await getTranscript(allCacheKey);
     if (allCached) {
       const filtered = filterSegmentsByMember(allCached, memberUri);
       saveTranscript(cacheKey, filtered).catch(console.error);
@@ -221,7 +238,7 @@ export async function fetchDebateTranscript(
   const request = (async () => {
     const xmlString = await fetchXmlDocument(xmlUri, signal);
     const allTranscript = parseAkomaNtosoXml(xmlString, debateSectionUri);
-    saveTranscript(`${debateSectionUri}::ALL`, allTranscript).catch(console.error);
+    saveTranscript(allCacheKey, allTranscript).catch(console.error);
 
     if (memberUri) {
       return filterSegmentsByMember(allTranscript, memberUri);
