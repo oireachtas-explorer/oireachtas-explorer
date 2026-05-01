@@ -223,36 +223,36 @@ export function GlobalDebatesList({ chamber, houseNo, onNavigateToDebate }: Glob
             <label className="filter-label">
               Committee{loadingCommittees ? ' (loading)' : availableCommittees.length > 0 ? ` (${availableCommittees.length})` : ''}
             </label>
-            <div className="committee-picker" role="combobox" aria-expanded={committeeMatches.length > 0} aria-haspopup="listbox" aria-owns="committee-results">
-              <input
-                className="filter-input"
-                type="search"
-                placeholder={loadingCommittees ? 'Loading committees...' : 'Search committees...'}
-                value={committeeQuery}
-                disabled={loadingCommittees || availableCommittees.length === 0}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  setCommitteeQuery(next);
-                  if (committeeCode && normalizeSearch(next) !== normalizeSearch(selectedCommittee?.name ?? '')) {
-                    setCommitteeCode('');
-                  }
-                }}
-              />
-              {selectedCommittee && (
-                <button
-                  type="button"
-                  className="committee-picker__clear"
-                  onClick={() => {
-                    setCommitteeCode('');
-                    setCommitteeQuery('');
-                  }}>
-                  All committees
-                </button>
-              )}
-              {!selectedCommittee && !committeeQuery && !loadingCommittees && (
-                <div className="filter-help">Type to filter the cached committee list.</div>
-              )}
-              {committeeQuery && (
+            <div className="committee-picker" role="combobox" aria-expanded={!selectedCommittee && committeeMatches.length > 0} aria-haspopup="listbox" aria-owns="committee-results">
+              <div className="committee-picker__input-wrap">
+                <input
+                  className="filter-input committee-picker__input"
+                  type="search"
+                  placeholder={loadingCommittees ? 'Loading committees...' : 'Search committees...'}
+                  value={committeeQuery}
+                  disabled={loadingCommittees || availableCommittees.length === 0}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setCommitteeQuery(next);
+                    if (committeeCode && normalizeSearch(next) !== normalizeSearch(selectedCommittee?.name ?? '')) {
+                      setCommitteeCode('');
+                    }
+                  }}
+                />
+                {selectedCommittee && (
+                  <button
+                    type="button"
+                    className="committee-picker__clear"
+                    onClick={() => {
+                      setCommitteeCode('');
+                      setCommitteeQuery('');
+                    }}
+                    aria-label="Clear committee filter">
+                    Clear
+                  </button>
+                )}
+              </div>
+              {committeeQuery && !selectedCommittee && (
                 <div id="committee-results" className="committee-picker__results" role="listbox" aria-label="Matching committees">
                   {committeeMatches.length > 0 ? committeeMatches.map((c) => (
                     <button

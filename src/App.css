@@ -752,9 +752,12 @@ body {
 .filter-help { font-size: 12px; color: var(--text4); line-height: 1.35; }
 .filter-search { flex: 2; min-width: 200px; }
 .committee-picker { position: relative; display: flex; flex-direction: column; gap: 6px; }
+.committee-picker__input-wrap { position: relative; }
+.committee-picker__input { width: 100%; padding-right: 64px; }
 .committee-picker__clear {
-  align-self: flex-start; border: 0; background: transparent; color: var(--g700);
-  font-family: var(--fi); font-size: 12px; font-weight: 700; cursor: pointer; padding: 0;
+  position: absolute; top: 50%; right: 10px; transform: translateY(-50%);
+  border: 0; background: transparent; color: var(--g700);
+  font-family: var(--fi); font-size: 12px; font-weight: 700; cursor: pointer; padding: 4px;
 }
 .committee-picker__clear:hover { text-decoration: underline; }
 .committee-picker__results {
