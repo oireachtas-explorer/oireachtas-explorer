@@ -91,6 +91,7 @@ this application. The logo is an original design.
 | Routing      | Hash-based, `#/<houseNo>/<view>`                  |
 | Data fetch   | Native `fetch` with in-memory response cache      |
 | Local cache  | IndexedDB via a thin wrapper (parsed transcripts) |
+| Transcript API | Optional Cloudflare Worker XML proxy/cache      |
 | Icons        | lucide-react                                      |
 
 ### Android Application
@@ -121,9 +122,10 @@ this application. The logo is an original design.
 - **Linting:** ESLint 9 (Web), ktlint (Android)
 - **CI/CD:** GitHub Actions (Web deployment to GitHub Pages)
 
-There is **no backend** and no server-side rendering. Everything runs
-in the browser and talks directly to `api.oireachtas.ie` and
-`data.oireachtas.ie`.
+There is **no application backend** and no server-side rendering. The
+web app runs in the browser and talks directly to `api.oireachtas.ie`.
+For better transcript reliability, it can optionally use a small
+Cloudflare Worker as a cached XML proxy for `data.oireachtas.ie`.
 
 ## Project layout
 
@@ -136,6 +138,7 @@ oireachtas/
 │   ├── api/                   # Oireachtas API wrappers
 │   ├── components/            # UI components
 │   └── ...
+├── worker/                    # Optional Cloudflare Worker transcript proxy
 ├── android/                   # Native Android application
 │   ├── app/                   # App module
 │   │   ├── src/main/java/     # Kotlin source code
@@ -185,7 +188,41 @@ npm run build       # tsc -b && vite build  — emits to dist/
 npm run preview     # serve the built bundle locally
 npm run lint        # eslint .
 npm run deploy      # build + push dist/ to the gh-pages branch
+npm run worker:dev  # run the Cloudflare Worker locally with Wrangler
+npm run worker:deploy # deploy the Cloudflare Worker
 ```
+
+### Optional transcript Worker
+
+The GitHub Pages site can run without a backend, but transcript XML
+loading is more reliable when routed through the Cloudflare Worker in
+`worker/`. The Worker only proxies and caches XML documents from
+`https://data.oireachtas.ie`; it does not store user data.
+
+1. Create or sign in to a Cloudflare account.
+2. From the project root, run:
+
+```sh
+npx wrangler login
+npm run worker:deploy
+```
+
+3. Copy the deployed Worker URL, for example:
+
+```text
+https://oireachtas-explorer-transcripts.<your-subdomain>.workers.dev
+```
+
+4. Build the GitHub Pages site with:
+
+```sh
+VITE_TRANSCRIPT_API_BASE=https://oireachtas-explorer-transcripts.<your-subdomain>.workers.dev npm run build
+```
+
+For GitHub Actions, add a repository variable named
+`VITE_TRANSCRIPT_API_BASE` with that Worker URL and expose it to the
+build step. If the variable is blank, the app falls back to direct XML
+fetching and the public proxy path used during local development.
 
 ## Deploying to GitHub Pages
 

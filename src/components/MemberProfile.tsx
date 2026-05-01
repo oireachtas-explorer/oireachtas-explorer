@@ -9,6 +9,7 @@ import { DebatesList } from './DebatesList';
 import { VotesList } from './VotesList';
 import { QuestionsList } from './QuestionsList';
 import { BillsList } from './BillsList';
+import { SaveButton } from './SaveButton';
 import type { Chamber, VoteBreakdown, View } from '../types';
 
 type ProfileTab = 'overview' | 'debates' | 'votes' | 'questions' | 'legislation';
@@ -155,6 +156,19 @@ export function MemberProfile({ memberUri, constituencyName, chamber, houseNo, o
                 )}
               </div>
               <div className="profile-name">{member.fullName}</div>
+              <SaveButton
+                item={{
+                  id: `member:${member.uri}`,
+                  type: 'member',
+                  title: member.fullName,
+                  subtitle: `${member.party} · ${member.constituency || constituencyName}`,
+                  urlHash: viewToHash({ kind: 'member', memberUri, memberName: member.fullName, constituencyCode: member.constituencyCode, constituencyName: member.constituency || constituencyName }, chamber, houseNo),
+                  chamber,
+                  houseNo,
+                  savedAt: '',
+                }}
+                className="save-btn--wide"
+              />
               <div className="profile-meta">
                 <span className="party-badge" style={{ backgroundColor: color }}>{member.party}</span>
               </div>

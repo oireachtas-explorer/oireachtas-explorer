@@ -49,12 +49,45 @@ function latestFor(chamber: Chamber): number {
   return chamber === 'seanad' ? LATEST_SEANAD : LATEST_DAIL;
 }
 
+function isoDate(date: Date): string {
+  return date.toISOString().split('T')[0];
+}
+
+function dayBefore(dateIso: string): string {
+  const date = new Date(`${dateIso}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - 1);
+  return isoDate(date);
+}
+
 export function getHouseDateRange(chamber: Chamber, houseNo: number): { start: string; end: string } {
   const years = yearsFor(chamber);
   const latest = latestFor(chamber);
   const start = years[houseNo] ?? 1919;
-  const end = houseNo < latest ? (years[houseNo + 1] ?? 2100) : 2100;
-  return { start: `${start}-01-01`, end: `${end}-12-31` };
+  if (houseNo >= latest) {
+    return { start: `${start}-01-01`, end: isoDate(new Date()) };
+  }
+
+  const nextStartYear = years[houseNo + 1] ?? start + 1;
+  return { start: `${start}-01-01`, end: dayBefore(`${nextStartYear}-01-01`) };
+}
+
+export function getHousePresetYearRange(chamber: Chamber, houseNo: number): { start: string; end: string } {
+  const today = isoDate(new Date());
+  const range = getHouseDateRange(chamber, houseNo);
+  const currentYearStart = `${today.slice(0, 4)}-01-01`;
+
+  if (currentYearStart <= range.end) {
+    return {
+      start: currentYearStart >= range.start ? currentYearStart : range.start,
+      end: today <= range.end ? today : range.end,
+    };
+  }
+
+  const latestYear = range.end.slice(0, 4);
+  return {
+    start: `${latestYear}-01-01` >= range.start ? `${latestYear}-01-01` : range.start,
+    end: range.end,
+  };
 }
 
 // Back-compat: assumes Dáil.

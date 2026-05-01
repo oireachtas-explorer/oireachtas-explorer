@@ -10,6 +10,9 @@ import { MemberProfile } from './components/MemberProfile';
 import { GlobalDebatesList } from './components/GlobalDebatesList';
 import { DebateViewerPage } from './components/DebateViewerPage';
 import { BillViewerPage } from './components/BillViewerPage';
+import { CompareMembersPage } from './components/CompareMembersPage';
+import { GlobalSearchPage } from './components/GlobalSearchPage';
+import { SavedItemsPage } from './components/SavedItemsPage';
 import { AttributionFooter } from './components/AttributionFooter';
 import { CommitteePage } from './components/CommitteePage';
 import { OfficesPage } from './components/OfficesPage';
@@ -344,6 +347,34 @@ export default function App() {
           </div>
         );
 
+      case 'search':
+        return (
+          <GlobalSearchPage
+            initialQuery={view.query}
+            chamber={chamber}
+            houseNo={houseNo}
+            allMembers={allMembers}
+            loadingAllMembers={loadingMembers}
+            onNavigate={navigate}
+            onBack={handleBack}
+          />
+        );
+
+      case 'saved':
+        return <SavedItemsPage onBack={handleBack} />;
+
+      case 'compare':
+        return (
+          <CompareMembersPage
+            chamber={chamber}
+            houseNo={houseNo}
+            allMembers={allMembers}
+            loadingAllMembers={loadingMembers}
+            onNavigate={navigate}
+            onBack={handleBack}
+          />
+        );
+
       case 'party':
         return (
           <div className="container">
@@ -386,6 +417,8 @@ export default function App() {
           <BillViewerPage
             billNo={view.billNo}
             billYear={view.billYear}
+            chamber={chamber}
+            houseNo={houseNo}
             onBack={handleBack}
           />
         );
@@ -402,6 +435,12 @@ export default function App() {
         </button>
 
         <HeaderSearch constituencies={constituencies} onSelect={handleSelectConstituency} />
+
+        <nav className="app-header__nav" aria-label="Research tools">
+          <button type="button" onClick={() => { navigate({ kind: 'search' }); }}>Search</button>
+          <button type="button" onClick={() => { navigate({ kind: 'compare' }); }}>Compare</button>
+          <button type="button" onClick={() => { navigate({ kind: 'saved' }); }}>Saved</button>
+        </nav>
 
         <div className="app-header__subtitle-container">
           <div className="chamber-toggle" role="group" aria-label="Select chamber">

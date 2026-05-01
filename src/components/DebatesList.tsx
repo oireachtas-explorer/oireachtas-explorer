@@ -40,7 +40,7 @@ export function DebatesList({ memberUri, chamber, houseNo }: DebatesListProps) {
     return <div className="empty-state">No debate records found.</div>;
   }
 
-  const debateShareUrl = shareDebate && shareDebate.xmlUri && shareDebate.debateSectionUri
+  const debateShareUrl = shareDebate?.xmlUri && shareDebate.debateSectionUri
     ? window.location.origin + window.location.pathname + viewToHash({ kind: 'debate-viewer', xmlUri: shareDebate.xmlUri, debateSectionUri: shareDebate.debateSectionUri, title: shareDebate.title, focusMemberUri: memberUri }, chamber, houseNo)
     : '';
 

@@ -6,8 +6,11 @@ export function viewToHash(view: View, chamber: Chamber, houseNo: number): strin
   switch (view.kind) {
     case 'home': return base;
     case 'global-debates': return `${base}/debates`;
-    case 'debate-viewer': return `${base}/debate/${encodeURIComponent(view.xmlUri)}/${encodeURIComponent(view.debateSectionUri)}/${encodeURIComponent(view.title)}${view.focusMemberUri ? '/' + encodeURIComponent(view.focusMemberUri) : ''}${view.speechIdx !== undefined ? '/' + view.speechIdx : ''}`;
+    case 'debate-viewer': return `${base}/debate/${encodeURIComponent(view.xmlUri)}/${encodeURIComponent(view.debateSectionUri)}/${encodeURIComponent(view.title)}${view.focusMemberUri ? '/' + encodeURIComponent(view.focusMemberUri) : ''}${view.speechIdx !== undefined ? '/' + String(view.speechIdx) : ''}`;
     case 'bill-viewer': return `${base}/bill/${view.billYear}/${view.billNo}`;
+    case 'search': return `${base}/search${view.query ? '/' + encodeURIComponent(view.query) : ''}`;
+    case 'saved': return `${base}/saved`;
+    case 'compare': return `${base}/compare`;
     case 'party': return `${base}/party/${encodeURIComponent(view.partyName)}`;
     case 'members': return `${base}/constituency/${encodeURIComponent(view.constituencyCode)}/${encodeURIComponent(view.constituencyName)}`;
     case 'member': return `${base}/member/${encodeURIComponent(view.memberUri)}/${encodeURIComponent(view.memberName)}/${encodeURIComponent(view.constituencyCode)}/${encodeURIComponent(view.constituencyName)}`;
@@ -54,7 +57,7 @@ export function parseHash(hash: string): ParsedHash {
         debateSectionUri: decodeURIComponent(rest[2]),
         title: decodeURIComponent(rest[3] || 'Debate Transcript'),
         focusMemberUri: rest[4] ? decodeURIComponent(rest[4]) : undefined,
-        speechIdx: rest[5] !== undefined ? parseInt(rest[5], 10) : undefined,
+        speechIdx: rest[5] ? parseInt(rest[5], 10) : undefined,
       }
     };
   }
@@ -63,6 +66,18 @@ export function parseHash(hash: string): ParsedHash {
       chamber, houseNo,
       view: { kind: 'bill-viewer', billYear: rest[1], billNo: rest[2] }
     };
+  }
+  if (rest[0] === 'search') {
+    return {
+      chamber, houseNo,
+      view: { kind: 'search', query: rest[1] ? decodeURIComponent(rest[1]) : undefined }
+    };
+  }
+  if (rest[0] === 'saved') {
+    return { chamber, houseNo, view: { kind: 'saved' } };
+  }
+  if (rest[0] === 'compare') {
+    return { chamber, houseNo, view: { kind: 'compare' } };
   }
   if (rest[0] === 'party' && rest[1]) {
     return {

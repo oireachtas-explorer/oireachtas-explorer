@@ -243,10 +243,17 @@ function chamberFromUri(uri: string): string {
   return 'Committee';
 }
 
-export async function fetchDebates(memberUri: string, limit = 20, skip = 0, chamber: Chamber, houseNo: number, signal?: AbortSignal): Promise<{ debates: Debate[]; total: number }> {
+function applyDateParams(params: Record<string, string | number>, dateStart?: string, dateEnd?: string): void {
+  if (dateStart) params.date_start = dateStart;
+  if (dateEnd) params.date_end = dateEnd;
+}
+
+export async function fetchDebates(memberUri: string, limit = 20, skip = 0, chamber: Chamber, houseNo: number, signal?: AbortSignal, dateStart?: string, dateEnd?: string): Promise<{ debates: Debate[]; total: number }> {
+  const params: Record<string, string | number> = { member_id: memberUri, limit, skip, chamber_id: houseUri(chamber, houseNo) };
+  applyDateParams(params, dateStart, dateEnd);
   const data = await apiFetch<OireachtasResult<DebateResult>>(
     '/debates',
-    { member_id: memberUri, limit, skip, chamber_id: houseUri(chamber, houseNo) },
+    params,
     signal
   );
   const debates = data.results.map((r) => {
@@ -337,10 +344,12 @@ function parseTallyType(showAs: string): 'ta' | 'nil' | 'staon' {
   return 'staon';
 }
 
-export async function fetchDivisions(memberUri: string, limit = 50, skip = 0, chamber: Chamber, houseNo: number, signal?: AbortSignal): Promise<{ divisions: Division[]; total: number }> {
+export async function fetchDivisions(memberUri: string, limit = 50, skip = 0, chamber: Chamber, houseNo: number, signal?: AbortSignal, dateStart?: string, dateEnd?: string): Promise<{ divisions: Division[]; total: number }> {
+  const params: Record<string, string | number> = { member_id: memberUri, limit, skip, chamber_id: houseUri(chamber, houseNo) };
+  applyDateParams(params, dateStart, dateEnd);
   const data = await apiFetch<OireachtasResult<DivisionResult>>(
     '/divisions',
-    { member_id: memberUri, limit, skip, chamber_id: houseUri(chamber, houseNo) },
+    params,
     signal
   );
   const divisions = data.results.map((r) => {
@@ -366,11 +375,19 @@ export async function fetchDivisions(memberUri: string, limit = 50, skip = 0, ch
 
 // ── Questions ─────────────────────────────────────────────────────────────────
 
-export async function fetchQuestions(memberUri: string, limit = 20, skip = 0, chamber: Chamber, houseNo: number, signal?: AbortSignal): Promise<{ questions: Question[]; total: number }> {
+export async function fetchQuestions(memberUri: string, limit = 20, skip = 0, chamber: Chamber, houseNo: number, signal?: AbortSignal, dateStart?: string, dateEnd?: string): Promise<{ questions: Question[]; total: number }> {
   const { start, end } = getHouseDateRange(chamber, houseNo);
+  const params: Record<string, string | number> = {
+    member_id: memberUri,
+    qtype: 'oral,written',
+    limit,
+    skip,
+    date_start: dateStart ?? start,
+    date_end: dateEnd ?? end,
+  };
   const data = await apiFetch<OireachtasResult<QuestionResult>>(
     '/questions',
-    { member_id: memberUri, qtype: 'oral,written', limit, skip, date_start: start, date_end: end },
+    params,
     signal
   );
   const questions = data.results.map((r) => {
@@ -385,6 +402,37 @@ export async function fetchQuestions(memberUri: string, limit = 20, skip = 0, ch
       askedBy: q.by?.showAs ?? '',
       department: q.to?.showAs ?? '',
       role,
+      xmlUri: q.debateSection?.formats?.xml?.uri,
+      debateSectionUri: q.debateSection?.uri,
+    };
+  });
+  return { questions, total: data.head.counts.resultCount ?? questions.length };
+}
+
+export async function fetchGlobalQuestions(
+  limit = 50,
+  skip = 0,
+  chamber: Chamber,
+  houseNo: number,
+  signal?: AbortSignal
+): Promise<{ questions: Question[]; total: number }> {
+  const { start, end } = getHouseDateRange(chamber, houseNo);
+  const data = await apiFetch<OireachtasResult<QuestionResult>>(
+    '/questions',
+    { chamber, qtype: 'oral,written', limit, skip, date_start: start, date_end: end },
+    signal
+  );
+  const questions = data.results.map((r) => {
+    const q = r.question;
+    return {
+      uri: q.uri,
+      date: q.date,
+      questionType: q.questionType,
+      questionNumber: q.questionNumber,
+      questionText: q.showAs ?? '',
+      askedBy: q.by?.showAs ?? '',
+      department: q.to?.showAs ?? '',
+      role: 'asked' as const,
       xmlUri: q.debateSection?.formats?.xml?.uri,
       debateSectionUri: q.debateSection?.uri,
     };
@@ -426,10 +474,29 @@ function toBill(r: BillResult): Bill {
   };
 }
 
-export async function fetchLegislation(memberUri: string, limit = 20, skip = 0, chamber: Chamber, houseNo: number, signal?: AbortSignal): Promise<{ bills: Bill[]; total: number }> {
+export async function fetchLegislation(memberUri: string, limit = 20, skip = 0, chamber: Chamber, houseNo: number, signal?: AbortSignal, dateStart?: string, dateEnd?: string): Promise<{ bills: Bill[]; total: number }> {
+  const params: Record<string, string | number> = { member_id: memberUri, limit, skip, chamber_id: houseUri(chamber, houseNo) };
+  applyDateParams(params, dateStart, dateEnd);
   const data = await apiFetch<OireachtasResult<BillResult>>(
     '/legislation',
-    { member_id: memberUri, limit, skip, chamber_id: houseUri(chamber, houseNo) },
+    params,
+    signal
+  );
+  const bills = data.results.map(toBill);
+  return { bills, total: data.head.counts.resultCount ?? bills.length };
+}
+
+export async function fetchGlobalLegislation(
+  limit = 100,
+  skip = 0,
+  chamber: Chamber,
+  houseNo: number,
+  signal?: AbortSignal
+): Promise<{ bills: Bill[]; total: number }> {
+  const { start, end } = getHouseDateRange(chamber, houseNo);
+  const data = await apiFetch<OireachtasResult<BillResult>>(
+    '/legislation',
+    { limit, skip, chamber_id: houseUri(chamber, houseNo), date_start: start, date_end: end },
     signal
   );
   const bills = data.results.map(toBill);
@@ -450,12 +517,12 @@ export async function fetchBill(billNo: string, billYear: string, signal?: Abort
 
 // Activity summary leverages the list apis with standard page limits (20)
 // so the initial fetch prepopulates the cache for the first page of the list tabs.
-export async function fetchActivitySummary(memberUri: string, chamber: Chamber, houseNo: number, signal?: AbortSignal): Promise<ActivitySummary> {
+export async function fetchActivitySummary(memberUri: string, chamber: Chamber, houseNo: number, signal?: AbortSignal, dateStart?: string, dateEnd?: string): Promise<ActivitySummary> {
   const [debatesRes, votesRes, questionsRes, billsRes] = await Promise.all([
-    fetchDebates(memberUri, 20, 0, chamber, houseNo, signal),
-    fetchDivisions(memberUri, 20, 0, chamber, houseNo, signal),
-    fetchQuestions(memberUri, 20, 0, chamber, houseNo, signal),
-    fetchLegislation(memberUri, 20, 0, chamber, houseNo, signal),
+    fetchDebates(memberUri, 20, 0, chamber, houseNo, signal, dateStart, dateEnd),
+    fetchDivisions(memberUri, 20, 0, chamber, houseNo, signal, dateStart, dateEnd),
+    fetchQuestions(memberUri, 20, 0, chamber, houseNo, signal, dateStart, dateEnd),
+    fetchLegislation(memberUri, 20, 0, chamber, houseNo, signal, dateStart, dateEnd),
   ]);
 
   return {
@@ -468,7 +535,7 @@ export async function fetchActivitySummary(memberUri: string, chamber: Chamber, 
 
 // Separate, deferrable fetch for the voting-split donut. Kept out of the main
 // summary so the stat cards can render immediately on member load.
-export async function fetchVoteBreakdown(memberUri: string, chamber: Chamber, houseNo: number, signal?: AbortSignal): Promise<VoteBreakdown> {
+export async function fetchVoteBreakdown(memberUri: string, chamber: Chamber, houseNo: number, signal?: AbortSignal, dateStart?: string, dateEnd?: string): Promise<VoteBreakdown> {
   let allDivisions: Division[] = [];
   let skip = 0;
   const chunkLimit = VOTE_HISTORY_CHUNK_LIMIT;
@@ -476,7 +543,7 @@ export async function fetchVoteBreakdown(memberUri: string, chamber: Chamber, ho
   let running = true;
   while (running) {
     if (signal?.aborted) throw new Error('Aborted');
-    const { divisions, total } = await fetchDivisions(memberUri, chunkLimit, skip, chamber, houseNo, signal);
+    const { divisions, total } = await fetchDivisions(memberUri, chunkLimit, skip, chamber, houseNo, signal, dateStart, dateEnd);
     allDivisions = allDivisions.concat(divisions);
 
     // Stop if we hit the limit of available results

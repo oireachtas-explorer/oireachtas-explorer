@@ -1,8 +1,13 @@
-import { saveTranscript, getTranscript } from './transcriptDb';
+import { saveTranscript, getTranscript, saveXmlDocument, getXmlDocument } from './transcriptDb';
 import type { SpeechSegment } from '../types';
 
 const PROXY_URL = 'https://api.allorigins.win/raw?url=';
-const FETCH_TIMEOUT_MS = 15000;
+const DIRECT_FETCH_TIMEOUT_MS = 8000;
+const PROXY_FETCH_TIMEOUT_MS = 20000;
+const TRANSCRIPT_API_BASE = (import.meta.env.VITE_TRANSCRIPT_API_BASE as string | undefined)?.replace(/\/+$/, '') ?? '';
+
+const xmlRequestCache = new Map<string, Promise<string>>();
+const transcriptRequestCache = new Map<string, Promise<SpeechSegment[]>>();
 
 export class TranscriptFetchError extends Error {
   sourceUrl: string;
@@ -119,6 +124,76 @@ function parseAkomaNtosoXml(xmlString: string, debateSectionUri: string, memberU
   return extractedSegments;
 }
 
+function filterSegmentsByMember(segments: SpeechSegment[], memberUri: string): SpeechSegment[] {
+  const memberIdSegment = memberUri.split('/member/')[1];
+  if (!memberIdSegment) return [];
+  return segments.filter((segment) => segment.memberUri?.includes(memberIdSegment));
+}
+
+async function fetchWithTimeout(url: string, timeoutMs: number, signal?: AbortSignal): Promise<Response> {
+  const timeoutController = new AbortController();
+  const timeoutId = setTimeout(() => { timeoutController.abort(); }, timeoutMs);
+  const combinedSignal = signal
+    ? AbortSignal.any([signal, timeoutController.signal])
+    : timeoutController.signal;
+
+  try {
+    return await fetch(url, { signal: combinedSignal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function fetchXmlDocument(xmlUri: string, signal?: AbortSignal): Promise<string> {
+  const cached = await getXmlDocument(xmlUri);
+  if (cached) return cached;
+
+  const inFlight = xmlRequestCache.get(xmlUri);
+  if (inFlight) return inFlight;
+
+  const request = (async () => {
+    let lastError: unknown = null;
+
+    const sources = [
+      ...(TRANSCRIPT_API_BASE
+        ? [{ url: `${TRANSCRIPT_API_BASE}/xml?url=${encodeURIComponent(xmlUri)}`, timeout: PROXY_FETCH_TIMEOUT_MS }]
+        : []),
+      { url: xmlUri, timeout: DIRECT_FETCH_TIMEOUT_MS },
+      { url: `${PROXY_URL}${encodeURIComponent(xmlUri)}`, timeout: PROXY_FETCH_TIMEOUT_MS },
+    ];
+
+    for (const source of sources) {
+      try {
+        const response = await fetchWithTimeout(source.url, source.timeout, signal);
+        if (!response.ok) {
+          lastError = new Error(`HTTP ${response.status}`);
+          continue;
+        }
+        const xml = await response.text();
+        saveXmlDocument(xmlUri, xml).catch(console.error);
+        return xml;
+      } catch (err) {
+        if (signal?.aborted) throw err;
+        lastError = err;
+      }
+    }
+
+    throw new TranscriptFetchError(
+      lastError instanceof Error
+        ? `Unable to load transcript (${lastError.message}). View the official record on Oireachtas.ie.`
+        : 'Unable to reach transcript service. View the official record on Oireachtas.ie.',
+      xmlUri
+    );
+  })();
+
+  xmlRequestCache.set(xmlUri, request);
+  void request.then(
+    () => { xmlRequestCache.delete(xmlUri); },
+    () => { xmlRequestCache.delete(xmlUri); }
+  );
+  return request;
+}
+
 export async function fetchDebateTranscript(
   xmlUri: string,
   debateSectionUri: string,
@@ -131,36 +206,35 @@ export async function fetchDebateTranscript(
   const cached = await getTranscript(cacheKey);
   if (cached) return cached;
 
-  const proxyUrl = `${PROXY_URL}${encodeURIComponent(xmlUri)}`;
-
-  const timeoutController = new AbortController();
-  const timeoutId = setTimeout(() => { timeoutController.abort(); }, FETCH_TIMEOUT_MS);
-  const combinedSignal = signal
-    ? AbortSignal.any([signal, timeoutController.signal])
-    : timeoutController.signal;
-
-  let response: Response;
-  try {
-    response = await fetch(proxyUrl, { signal: combinedSignal });
-  } catch (err) {
-    clearTimeout(timeoutId);
-    if (signal?.aborted) throw err;
-    throw new TranscriptFetchError(
-      'Unable to reach transcript service. View the official record on Oireachtas.ie.',
-      xmlUri
-    );
-  }
-  clearTimeout(timeoutId);
-
-  if (!response.ok) {
-    throw new TranscriptFetchError(
-      `Transcript unavailable (${response.status}). View the official record on Oireachtas.ie.`,
-      xmlUri
-    );
+  if (memberUri) {
+    const allCached = await getTranscript(`${debateSectionUri}::ALL`);
+    if (allCached) {
+      const filtered = filterSegmentsByMember(allCached, memberUri);
+      saveTranscript(cacheKey, filtered).catch(console.error);
+      return filtered;
+    }
   }
 
-  const xmlString = await response.text();
-  const transcript = parseAkomaNtosoXml(xmlString, debateSectionUri, memberUri);
+  const inFlight = transcriptRequestCache.get(cacheKey);
+  if (inFlight) return inFlight;
+
+  const request = (async () => {
+    const xmlString = await fetchXmlDocument(xmlUri, signal);
+    const allTranscript = parseAkomaNtosoXml(xmlString, debateSectionUri);
+    saveTranscript(`${debateSectionUri}::ALL`, allTranscript).catch(console.error);
+
+    if (memberUri) {
+      return filterSegmentsByMember(allTranscript, memberUri);
+    }
+    return allTranscript;
+  })();
+
+  transcriptRequestCache.set(cacheKey, request);
+  void request.then(
+    () => { transcriptRequestCache.delete(cacheKey); },
+    () => { transcriptRequestCache.delete(cacheKey); }
+  );
+  const transcript = await request;
 
   // Fire and forget caching logic
   saveTranscript(cacheKey, transcript).catch(console.error);

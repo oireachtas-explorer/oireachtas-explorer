@@ -38,7 +38,7 @@ interface StageNode {
 
 function buildStages(bill: Bill): StageNode[] {
   const ORDERED = ['First Stage', 'Second Stage', 'Committee Stage', 'Report Stage', 'Fifth Stage', 'Passed', 'Signed'];
-  const current = bill.currentStage ?? '';
+  const current = bill.currentStage;
   const currentIdx = ORDERED.findIndex(s => s === current || current.includes(s.split(' ')[0]));
 
   if (currentIdx < 0) return [];
@@ -183,7 +183,7 @@ export function BillsList({ memberUri, chamber, houseNo }: BillsListProps) {
         {allBills.map((b, i) => {
           const stages = buildStages(b);
           const isPrimary = b.sponsors.length > 0 && b.sponsors[0].toLowerCase().includes('primary');
-          const hasPdf = !!(b.versions?.some(v => v.pdfUri) ?? b.relatedDocs?.some(d => d.pdfUri));
+          const hasPdf = b.versions?.some(v => v.pdfUri) === true || b.relatedDocs?.some(d => d.pdfUri) === true;
           return (
             <div key={b.uri} className="bill-card" style={{ animationDelay: `${i * 0.05}s`, position: 'relative' }}>
               <button className="card-link-btn" onClick={() => { setShareBill(b); }} aria-label={`Copy link to ${b.title}`}>

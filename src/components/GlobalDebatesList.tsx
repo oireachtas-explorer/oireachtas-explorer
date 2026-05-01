@@ -137,13 +137,15 @@ export function GlobalDebatesList({ chamber, houseNo, onNavigateToDebate }: Glob
 
   // Group filtered rows by month — must be before any early returns (rules of hooks)
   const monthGroups = useMemo(() => {
-    const g: Record<string, typeof filteredRows> = {};
+    const g: Partial<Record<string, typeof filteredRows>> = {};
     for (const r of filteredRows) {
       const m = r.debate.date.slice(0, 7);
-      if (!g[m]) g[m] = [];
+      g[m] ??= [];
       g[m].push(r);
     }
-    return Object.entries(g).sort((a, b) => b[0].localeCompare(a[0]));
+    return Object.entries(g)
+      .map(([month, rows]) => [month, rows ?? []] as const)
+      .sort((a, b) => b[0].localeCompare(a[0]));
   }, [filteredRows]);
 
   if (loading) {
@@ -172,7 +174,7 @@ export function GlobalDebatesList({ chamber, houseNo, onNavigateToDebate }: Glob
         {(['house', 'committee', ''] as ChamberType[]).map((t) => {
           const label = t === 'house' ? `${chamberName(chamber)} Plenary` : t === 'committee' ? 'Committees' : 'All';
           return (
-            <button key={t ?? 'all'}
+            <button key={t || 'all'}
               className={`type-filter-btn${chamberType === t ? ' type-filter-btn--active' : ''}`}
               onClick={() => { setChamberType(t); }}>
               {label}

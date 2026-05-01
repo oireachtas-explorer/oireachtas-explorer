@@ -1,18 +1,24 @@
 import { useAsync } from '../hooks/useAsync';
 import { fetchBill } from '../api/oireachtas';
-import { useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { formatDateShort, billStatusLabel, billStatusClass } from '../utils/format';
 import { FileText, Download } from 'lucide-react';
+import type { Bill, BillDocument, Chamber } from '../types';
+import { SaveButton } from './SaveButton';
+import { viewToHash } from '../utils/routing';
 
 interface BillViewerPageProps {
   billNo: string;
   billYear: string;
+  chamber: Chamber;
+  houseNo: number;
   onBack: () => void;
 }
 
-export function BillViewerPage({ billNo, billYear, onBack }: BillViewerPageProps) {
+export function BillViewerPage({ billNo, billYear, chamber, houseNo, onBack }: BillViewerPageProps) {
   const fetcher = useCallback((signal: AbortSignal) => fetchBill(billNo, billYear, signal), [billNo, billYear]);
   const { data: bill, loading, error } = useAsync(fetcher);
+  const [activeDocKey, setActiveDocKey] = useState('');
 
   if (loading) {
     return (
@@ -39,9 +45,12 @@ export function BillViewerPage({ billNo, billYear, onBack }: BillViewerPageProps
     );
   }
 
-  // Pick the most recent document to show in the iframe. "As Initiated" is usually the first version.
-  // We bias towards the first version PDF. If they want others, we can add a document switcher later.
-  const activePdfUrl = bill.versions?.[0]?.pdfUri ?? bill.relatedDocs?.[0]?.pdfUri;
+  const documents = [
+    ...(bill.versions ?? []).map((doc, index) => ({ ...doc, key: `version-${index}`, group: 'Version' })),
+    ...(bill.relatedDocs ?? []).map((doc, index) => ({ ...doc, key: `related-${index}`, group: 'Related' })),
+  ];
+  const activeDoc = documents.find((doc) => doc.key === activeDocKey) ?? documents.find((doc) => doc.pdfUri);
+  const activePdfUrl = activeDoc?.pdfUri;
 
   return (
     <div className="container" style={{ maxWidth: '1200px', animation: 'fadeInUp 0.3s ease' }}>
@@ -64,6 +73,18 @@ export function BillViewerPage({ billNo, billYear, onBack }: BillViewerPageProps
               {bill.title}
             </h1>
           </div>
+          <SaveButton
+            item={{
+              id: `bill:${bill.billYear}:${bill.billNo}`,
+              type: 'bill',
+              title: bill.title,
+              subtitle: `Bill ${bill.billNo} of ${bill.billYear} · ${billStatusLabel(bill.status)}`,
+              urlHash: viewToHash({ kind: 'bill-viewer', billNo: bill.billNo, billYear: bill.billYear }, chamber, houseNo),
+              chamber,
+              houseNo,
+              savedAt: '',
+            }}
+          />
         </div>
 
         {bill.longTitleEn && (
@@ -103,6 +124,8 @@ export function BillViewerPage({ billNo, billYear, onBack }: BillViewerPageProps
             </div>
           </div>
         </div>
+
+        <BillTimeline bill={bill} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 300px', gap: '2rem', alignItems: 'start' }}>
@@ -110,7 +133,7 @@ export function BillViewerPage({ billNo, billYear, onBack }: BillViewerPageProps
           <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--color-bg-secondary)' }}>
             <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem' }}>
               <FileText size={20} className="color-accent" />
-              Official Document
+              {activeDoc?.title ?? 'Official Document'}
             </h3>
             {activePdfUrl && (
               <a 
@@ -137,6 +160,26 @@ export function BillViewerPage({ billNo, billYear, onBack }: BillViewerPageProps
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {documents.length > 0 && (
+            <div style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)', padding: '1.5rem', boxShadow: 'var(--shadow-sm)', border: '1px solid var(--color-border)' }}>
+              <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: 'var(--color-text-primary)' }}>Document Viewer</h3>
+              <div className="document-picker">
+                {documents.map((doc) => (
+                  <button
+                    key={doc.key}
+                    type="button"
+                    className={`document-picker__item${activeDoc?.key === doc.key ? ' document-picker__item--active' : ''}`}
+                    onClick={() => { setActiveDocKey(doc.key); }}
+                    disabled={!doc.pdfUri}
+                  >
+                    <span>{doc.title}</span>
+                    <small>{doc.group} · {formatDateShort(doc.date)}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)', padding: '1.5rem', boxShadow: 'var(--shadow-sm)', border: '1px solid var(--color-border)' }}>
             <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: 'var(--color-text-primary)' }}>Versions</h3>
             {bill.versions && bill.versions.length > 0 ? (
@@ -184,6 +227,62 @@ export function BillViewerPage({ billNo, billYear, onBack }: BillViewerPageProps
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function BillTimeline({ bill }: { bill: Bill }) {
+  const events = useMemo(() => {
+    const fromStages = (bill.stages ?? [])
+      .flatMap((stage) => {
+        const event = stage.event;
+        if (!event) return [];
+        const firstDate = event.dates[0]?.date ?? '';
+        return [{
+          key: event.uri,
+          date: firstDate,
+          title: event.showAs,
+          meta: `${event.house.showAs}${event.stageOutcome ? ` · ${event.stageOutcome}` : ''}`,
+          complete: event.stageCompleted,
+        }];
+      });
+
+    const fromDocs = [
+      ...(bill.versions ?? []).map((doc: BillDocument, index) => ({
+        key: `doc-version-${index}`,
+        date: doc.date,
+        title: doc.title,
+        meta: 'Bill version published',
+        complete: true,
+      })),
+      ...(bill.relatedDocs ?? []).map((doc: BillDocument, index) => ({
+        key: `doc-related-${index}`,
+        date: doc.date,
+        title: doc.title,
+        meta: 'Related document published',
+        complete: true,
+      })),
+    ];
+
+    return [...fromStages, ...fromDocs]
+      .filter((event) => event.date)
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [bill]);
+
+  if (events.length === 0) return null;
+
+  return (
+    <div className="bill-timeline">
+      <h3>Timeline</h3>
+      <ol>
+        {events.map((event) => (
+          <li key={event.key} className={event.complete ? 'bill-timeline__event bill-timeline__event--complete' : 'bill-timeline__event'}>
+            <time>{formatDateShort(event.date)}</time>
+            <span>{event.title}</span>
+            <small>{event.meta}</small>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }

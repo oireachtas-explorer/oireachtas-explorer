@@ -1,15 +1,5 @@
 import { useEffect, useState } from 'react';
-
-function copyViaExecCommand(text: string) {
-  const ta = document.createElement('textarea');
-  ta.value = text;
-  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
-  document.body.appendChild(ta);
-  ta.focus();
-  ta.select();
-  document.execCommand('copy');
-  document.body.removeChild(ta);
-}
+import { copyText } from '../utils/clipboard';
 
 interface ShareModalProps {
   url: string;
@@ -30,15 +20,7 @@ export function ShareModal({ url, onClose }: ShareModalProps) {
       setCopied(true);
       setTimeout(() => { setCopied(false); }, 2000);
     };
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(url).then(finish).catch(() => {
-        copyViaExecCommand(url);
-        finish();
-      });
-    } else {
-      copyViaExecCommand(url);
-      finish();
-    }
+    copyText(url).then(finish).catch(finish);
   };
 
   return (

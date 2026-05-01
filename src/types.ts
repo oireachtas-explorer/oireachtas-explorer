@@ -9,6 +9,9 @@ export type View =
   | { kind: 'global-debates'; houseNo: number }
   | { kind: 'debate-viewer'; xmlUri: string; debateSectionUri: string; title: string; focusMemberUri?: string; speechIdx?: number }
   | { kind: 'bill-viewer'; billNo: string; billYear: string }
+  | { kind: 'search'; query?: string }
+  | { kind: 'saved' }
+  | { kind: 'compare' }
   | { kind: 'party'; partyName: string }
   | { kind: 'members'; constituencyCode: string; constituencyName: string }
   | { kind: 'member'; memberUri: string; memberName: string; constituencyCode: string; constituencyName: string }
