@@ -1557,6 +1557,7 @@ body {
   .home-grid { grid-template-columns: 1fr; }
   .profile-layout { flex-direction: column; }
   .profile-sidebar { width: 100%; position: static; }
+  .profile-main { width: 100%; max-width: 100%; }
   .act-grid { grid-template-columns: repeat(2,1fr); }
   .compare-controls { grid-template-columns: 1fr; }
   .questions-insights__grid { grid-template-columns: 1fr; }
