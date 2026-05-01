@@ -62,7 +62,7 @@ export function GlobalSearchPage({
       includes(m.fullName, term) ||
       includes(m.party, term) ||
       includes(m.constituency, term) ||
-      m.offices.some((office) => includes(office, term)) ||
+      m.offices.some((office) => includes(office.name, term)) ||
       (m.committees ?? []).some((committee) => includes(committee.name, term))
     ).slice(0, 20);
   }, [allMembers, term]);

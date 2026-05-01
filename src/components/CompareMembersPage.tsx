@@ -319,7 +319,7 @@ function CompareMemberCard({
       <div className="compare-section">
         <h3>Roles</h3>
         <div className="compare-tags">
-          {[...member.offices, ...(member.committees ?? []).map((committee) => committee.name)].slice(0, 8).map((role) => (
+          {[...member.offices.map((office) => office.name), ...(member.committees ?? []).map((committee) => committee.name)].slice(0, 8).map((role) => (
             <span key={role}>{role}</span>
           ))}
           {member.offices.length === 0 && (member.committees ?? []).length === 0 && <small>No current offices or committees listed.</small>}

@@ -139,8 +139,15 @@ export interface Member {
   constituency: string;
   constituencyCode: string;
   photoUrl: string;
-  offices: string[];
+  offices: OfficeHolding[];
   committees?: CommitteeMembership[];
+}
+
+export interface OfficeHolding {
+  name: string;
+  startDate: string;
+  endDate: string | null;
+  current: boolean;
 }
 
 // ── Debate ────────────────────────────────────────────────────────────────────

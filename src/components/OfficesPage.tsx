@@ -36,7 +36,7 @@ export function OfficesPage({
     return allMembers
       .filter(m => m.offices.length > 0)
       .flatMap(m => m.offices.map(office => ({ member: m, office })))
-      .sort((a, b) => officeOrder(a.office) - officeOrder(b.office) || a.office.localeCompare(b.office));
+      .sort((a, b) => officeOrder(a.office.name) - officeOrder(b.office.name) || a.office.name.localeCompare(b.office.name));
   }, [allMembers]);
 
   return (
@@ -63,7 +63,7 @@ export function OfficesPage({
         <div className="committee-member-list">
           {officeHolders.map(({ member: m, office }) => (
             <button
-              key={`${m.uri}::${office}`}
+              key={`${m.uri}::${office.name}::${office.endDate ?? 'current'}`}
               className="committee-member-card"
               onClick={() => { onSelectMember(m.uri, m.fullName, m.constituencyCode, m.constituency); }}
             >
@@ -92,7 +92,7 @@ export function OfficesPage({
                   </span>
                   <span className="committee-member-card__constituency">{m.constituency}</span>
                 </div>
-                <div className="offices-page__office-title">{office}</div>
+                <div className="offices-page__office-title">{office.name}</div>
               </div>
             </button>
           ))}

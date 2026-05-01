@@ -6,6 +6,7 @@ import type {
   MembershipRaw,
   CommitteeMembership,
   Member,
+  OfficeHolding,
   DebateResult,
   Debate,
   DivisionResult,
@@ -165,16 +166,46 @@ function extractCommittees(memberships: MembershipRaw[], chamber: Chamber, house
   return [];
 }
 
-function extractOffices(memberships: MembershipRaw[]): string[] {
-  const offices: string[] = [];
+function extractOffices(memberships: MembershipRaw[], chamber: Chamber, houseNo: number): OfficeHolding[] {
+  const houseRange = getHouseDateRange(chamber, houseNo);
+  const offices = new Map<string, OfficeHolding>();
+
   for (const m of memberships) {
+    const h = m.membership.house;
+    if (h.houseCode !== chamber || h.houseNo !== String(houseNo)) continue;
+
     for (const o of m.membership.offices) {
-      if (o.office.dateRange.end === null) {
-        offices.push(o.office.officeName.showAs);
+      const start = o.office.dateRange.start;
+      const endDate = o.office.dateRange.end;
+      const end = endDate ?? houseRange.end;
+      if (start <= houseRange.end && end >= houseRange.start) {
+        const name = o.office.officeName.showAs;
+        const existing = offices.get(name);
+        const next: OfficeHolding = {
+          name,
+          startDate: start,
+          endDate,
+          current: endDate === null,
+        };
+
+        if (!existing) {
+          offices.set(name, next);
+          continue;
+        }
+
+        if (next.current && !existing.current) {
+          offices.set(name, next);
+          continue;
+        }
+
+        if (next.current === existing.current && next.startDate > existing.startDate) {
+          offices.set(name, next);
+        }
       }
     }
   }
-  return offices;
+
+  return Array.from(offices.values());
 }
 
 function toMember(r: MemberResult, chamber?: Chamber, houseNo?: number): Member {
@@ -190,7 +221,9 @@ function toMember(r: MemberResult, chamber?: Chamber, houseNo?: number): Member 
     constituency: c.name,
     constituencyCode: c.code,
     photoUrl: getMemberPhotoUrl(m.uri),
-    offices: extractOffices(m.memberships),
+    offices: chamber !== undefined && houseNo !== undefined
+      ? extractOffices(m.memberships, chamber, houseNo)
+      : [],
     committees: chamber !== undefined && houseNo !== undefined
       ? extractCommittees(m.memberships, chamber, houseNo)
       : undefined,

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import './App.css';
-import type { Chamber, View, Constituency, Member } from './types';
+import type { Chamber, View, Constituency, Member, OfficeHolding } from './types';
 import { LogoSVG } from './components/Logo';
 import { fetchConstituencies, fetchAllMembers } from './api/oireachtas';
 import { houseList, LATEST_DAIL, LATEST_SEANAD, chamberName, memberNoun } from './utils/dail';
@@ -19,9 +19,45 @@ import { CommitteePage } from './components/CommitteePage';
 import { OfficesPage } from './components/OfficesPage';
 import { PartyBreakdown } from './components/PartyBreakdown';
 import { viewToHash, parseHash } from './utils/routing';
+import { formatDateShort, partyColor } from './utils/format';
 
 function latestForChamber(c: Chamber): number {
   return c === 'seanad' ? LATEST_SEANAD : LATEST_DAIL;
+}
+
+const CABINET_PRIORITIES = [
+  'Taoiseach',
+  'Tánaiste',
+  'Minister',
+  'Attorney General',
+];
+
+function isCabinetOffice(office: OfficeHolding): boolean {
+  return office.name === 'Taoiseach'
+    || office.name === 'Tánaiste'
+    || office.name.startsWith('Minister')
+    || office.name === 'Attorney General';
+}
+
+function cabinetOfficeOrder(office: OfficeHolding | string): number {
+  const officeName = typeof office === 'string' ? office : office.name;
+  const index = CABINET_PRIORITIES.findIndex((prefix) => officeName.startsWith(prefix) || officeName === prefix);
+  return index === -1 ? CABINET_PRIORITIES.length : index;
+}
+
+function formatCabinetOffice(office: OfficeHolding): string {
+  if (office.current || !office.endDate) return office.name;
+  return `${office.name} (until ${formatDateShort(office.endDate)})`;
+}
+
+function ordinalSuffix(value: number): string {
+  if (value % 100 >= 11 && value % 100 <= 13) return 'th';
+  switch (value % 10) {
+    case 1: return 'st';
+    case 2: return 'nd';
+    case 3: return 'rd';
+    default: return 'th';
+  }
 }
 
 // Header search bar component
@@ -193,6 +229,28 @@ export default function App() {
   const label = chamberName(chamber);
   const latest = latestForChamber(chamber);
   const currentList = houseList(chamber);
+  const cabinetMembers = useMemo(() => {
+    if (chamber !== 'dail') return [];
+
+    return allMembers
+      .map((member) => ({
+        member,
+        offices: member.offices
+          .filter(isCabinetOffice)
+          .sort((a, b) =>
+            Number(b.current) - Number(a.current)
+            || cabinetOfficeOrder(a) - cabinetOfficeOrder(b)
+            || a.name.localeCompare(b.name)
+          ),
+      }))
+      .filter(({ offices }) => offices.length > 0)
+      .sort((a, b) =>
+        cabinetOfficeOrder(a.offices[0]) - cabinetOfficeOrder(b.offices[0])
+        || Number(b.offices[0].current) - Number(a.offices[0].current)
+        || a.offices[0].name.localeCompare(b.offices[0].name)
+        || a.member.lastName.localeCompare(b.member.lastName)
+      );
+  }, [allMembers, chamber]);
 
   function renderView() {
     if (constituenciesError && view.kind === 'home') {
@@ -259,6 +317,77 @@ export default function App() {
                   />
                 </div>
               </div>
+
+              {chamber === 'dail' && (
+                <div style={{ marginTop: 48 }}>
+                  <div className="section-hd">
+                    <div>
+                      <div className="section-title">Cabinet</div>
+                      <div className="section-sub">
+                        {houseNo === latest ? 'Current government appointments' : `Government office holders during the ${houseNo}${ordinalSuffix(houseNo)} Dáil`}
+                      </div>
+                    </div>
+                    <button className="section-link" onClick={() => { navigate({ kind: 'offices' }); }}>
+                      View all offices →
+                    </button>
+                  </div>
+
+                  {loadingMembers ? (
+                    <div className="loading-state" role="status" aria-live="polite">
+                      <div className="spinner" aria-hidden="true" />
+                      <span>Loading cabinet members…</span>
+                    </div>
+                  ) : cabinetMembers.length > 0 ? (
+                    <div className="cabinet-grid">
+                      {cabinetMembers.map(({ member, offices }) => (
+                        <button
+                          key={member.uri}
+                          className="cabinet-card"
+                          onClick={() => { handleSelectMember(member.uri, member.fullName, member.constituencyCode, member.constituency); }}
+                        >
+                          <div className="cabinet-card__photo-wrap">
+                            <img
+                              src={member.photoUrl}
+                              alt={member.fullName}
+                              loading="lazy"
+                              className="cabinet-card__photo"
+                              onError={(e) => {
+                                const el = e.currentTarget;
+                                el.style.display = 'none';
+                                const fallback = el.nextElementSibling as HTMLElement | null;
+                                if (fallback) fallback.style.display = 'flex';
+                              }}
+                            />
+                            <div className="cabinet-card__initials" style={{ display: 'none' }}>
+                              {member.firstName[0]}{member.lastName[0]}
+                            </div>
+                          </div>
+                          <div className="cabinet-card__body">
+                            <div className="cabinet-card__name">{member.fullName}</div>
+                            <div className="cabinet-card__meta">
+                              <span className="party-badge" style={{ backgroundColor: partyColor(member.party) }}>
+                                {member.party}
+                              </span>
+                              <span className="cabinet-card__constituency">{member.constituency}</span>
+                            </div>
+                            <ul className="cabinet-card__offices">
+                              {offices.map((office) => (
+                                <li key={`${office.name}:${office.endDate ?? 'current'}`} className={`cabinet-card__office${office.current ? '' : ' cabinet-card__office--former'}`}>
+                                  {formatCabinetOffice(office)}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="empty-state">
+                      <p>No cabinet appointments were found for this Dáil.</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Debates CTA */}
               <div style={{ marginTop: 48 }}>

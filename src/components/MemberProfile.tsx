@@ -178,7 +178,7 @@ export function MemberProfile({ memberUri, constituencyName, chamber, houseNo, o
                   href={viewToHash({ kind: 'offices' }, chamber, houseNo)}
                   onClick={(e) => { e.preventDefault(); onNavigate({ kind: 'offices' }); }}
                   style={{ textDecoration: 'none', cursor: 'pointer', display: 'inline-block' }}>
-                  {o}
+                  {o.name}
                 </a>
               ))}
               <hr className="profile-divider" />

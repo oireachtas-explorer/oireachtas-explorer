@@ -51,7 +51,7 @@ export function MemberCard({ member, chamber, houseNo, constituencyCode, constit
               {member.party}
             </span>
             {member.offices.length > 0 && (
-              <div className="member-card__office">{member.offices.at(0)}</div>
+              <div className="member-card__office">{member.offices.find((office) => office.current)?.name ?? member.offices.at(0)?.name}</div>
             )}
           </div>
         </button>
