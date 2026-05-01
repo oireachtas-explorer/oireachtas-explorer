@@ -169,6 +169,14 @@ export interface DebateResult {
     uri: string;
     date: string;
     debateType: string;
+    house?: {
+      chamberType: string;
+      committeeCode?: string;
+      showAs: string;
+      uri: string;
+      houseCode: string;
+      houseNo: string;
+    };
     debateSections: DebateSectionRaw[];
     formats?: { xml?: { uri: string }; pdf?: { uri: string } };
   };

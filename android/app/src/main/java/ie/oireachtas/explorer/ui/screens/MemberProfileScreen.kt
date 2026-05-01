@@ -32,9 +32,12 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ie.oireachtas.explorer.data.model.*
+import ie.oireachtas.explorer.data.saved.SavedItem
+import ie.oireachtas.explorer.data.saved.SavedItemType
 import ie.oireachtas.explorer.ui.components.DebateCard
 import ie.oireachtas.explorer.ui.components.LoadingIndicator
 import ie.oireachtas.explorer.ui.components.MemberAvatar
+import ie.oireachtas.explorer.ui.components.SaveButton
 import ie.oireachtas.explorer.ui.components.SectionHeader
 import ie.oireachtas.explorer.ui.theme.OireachtasColors
 import ie.oireachtas.explorer.ui.theme.PartyColors
@@ -75,7 +78,7 @@ fun MemberProfileScreen(
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             MemberAvatar(member.photoUrl, member.fullName, size = 80.dp)
             Spacer(Modifier.width(16.dp))
-            Column {
+            Column(Modifier.weight(1f)) {
                 Text(member.fullName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Box(Modifier.size(10.dp).clip(CircleShape).background(PartyColors.partyColor(member.party)))
@@ -89,6 +92,22 @@ fun MemberProfileScreen(
                 member.offices.forEach { office ->
                     AssistChip(onClick = {}, label = { Text(office, style = MaterialTheme.typography.labelSmall) }, shape = RoundedCornerShape(16.dp))
                 }
+                Spacer(Modifier.height(8.dp))
+                SaveButton(
+                    item = SavedItem(
+                        id = "member:${member.uri}",
+                        type = SavedItemType.member,
+                        title = member.fullName,
+                        subtitle = listOfNotNull(
+                            member.party.takeIf { it.isNotBlank() },
+                            member.constituency.takeIf { it.isNotBlank() }
+                        ).joinToString(" · ").ifBlank { null },
+                        urlHash = "#/$chamber/$houseNo/member?uri=${member.uri}",
+                        chamber = chamber,
+                        houseNo = houseNo,
+                        savedAt = "",
+                    )
+                )
             }
         }
 

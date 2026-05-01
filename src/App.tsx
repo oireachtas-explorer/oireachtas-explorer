@@ -160,20 +160,40 @@ export default function App() {
   const [constituenciesError, setConstituenciesError] = useState<string | null>(null);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     setLoadingConstituencies(true);
     setLoadingMembers(true);
     setConstituenciesError(null);
-    fetchConstituencies(chamber, houseNo)
-      .then(setConstituencies)
+    fetchConstituencies(chamber, houseNo, controller.signal)
+      .then((nextConstituencies) => {
+        if (controller.signal.aborted) return;
+        setConstituencies(nextConstituencies);
+      })
       .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
         setConstituenciesError(err instanceof Error ? err.message : 'Failed to load constituencies');
         setConstituencies([]);
       })
-      .finally(() => { setLoadingConstituencies(false); });
-    fetchAllMembers(chamber, houseNo)
-      .then(setAllMembers)
-      .catch(() => { setAllMembers([]); })
-      .finally(() => { setLoadingMembers(false); });
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingConstituencies(false);
+      });
+    fetchAllMembers(chamber, houseNo, controller.signal)
+      .then((nextMembers) => {
+        if (controller.signal.aborted) return;
+        setAllMembers(nextMembers);
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setAllMembers([]);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingMembers(false);
+      });
+
+    return () => {
+      controller.abort();
+    };
   }, [chamber, houseNo]);
 
   useEffect(() => {

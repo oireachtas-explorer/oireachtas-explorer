@@ -9,12 +9,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -113,6 +114,9 @@ fun OireachtasApp(pendingDeepLink: MutableStateFlow<Uri?>? = null) {
         val uri = deepLink ?: return@LaunchedEffect
         when (uri.host) {
             "member" -> uri.getQueryParameter("uri")?.let { navigateToMember(it) }
+            "collection" -> uri.getQueryParameter("slug")?.let { slug ->
+                navController.navigate("collection/$slug")
+            }
         }
         pendingDeepLink?.value = null
     }
@@ -120,7 +124,7 @@ fun OireachtasApp(pendingDeepLink: MutableStateFlow<Uri?>? = null) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
-            // Header matching the web's green gradient bar
+            // Header — matches the web's solid --g900 sticky bar
             Surface(
                 shadowElevation = 4.dp,
                 tonalElevation = 0.dp,
@@ -128,15 +132,7 @@ fun OireachtasApp(pendingDeepLink: MutableStateFlow<Uri?>? = null) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(
-                                    OireachtasColors.Green900,
-                                    OireachtasColors.Green800,
-                                    OireachtasColors.Green700
-                                )
-                            )
-                        )
+                        .background(OireachtasColors.Green900)
                         .statusBarsPadding()
                         .padding(horizontal = 16.dp, vertical = 10.dp)
                 ) {
@@ -145,7 +141,7 @@ fun OireachtasApp(pendingDeepLink: MutableStateFlow<Uri?>? = null) {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // Title — clickable to go home
+                        // Title — clickable to go home, serif display face like web
                         TextButton(
                             onClick = { navController.popBackStack("home", inclusive = false) },
                             contentPadding = PaddingValues(0.dp)
@@ -153,13 +149,26 @@ fun OireachtasApp(pendingDeepLink: MutableStateFlow<Uri?>? = null) {
                             Text(
                                 text = "Oireachtas Explorer",
                                 color = Color.White,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
+                                style = ie.oireachtas.explorer.ui.theme.HeroDisplay.copy(fontSize = 20.sp),
                             )
                         }
 
                         Spacer(Modifier.weight(1f))
-                        
+
+                        IconButton(onClick = { navController.navigate("search") }) {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = "Search",
+                                tint = Color.White
+                            )
+                        }
+                        IconButton(onClick = { navController.navigate("saved") }) {
+                            Icon(
+                                Icons.Default.Bookmark,
+                                contentDescription = "Saved items",
+                                tint = Color.White
+                            )
+                        }
                         IconButton(onClick = { navController.navigate("about") }) {
                             Icon(
                                 Icons.Default.Info,
@@ -263,7 +272,9 @@ fun OireachtasApp(pendingDeepLink: MutableStateFlow<Uri?>? = null) {
                     onGlobalDebates = {
                         viewModel.loadGlobalDebates()
                         navController.navigate("global_debates")
-                    }
+                    },
+                    onSelectMember = { m -> navigateToMember(m.uri) },
+                    onCompareMembers = { navController.navigate("compare") },
                 )
             }
 
@@ -313,7 +324,9 @@ fun OireachtasApp(pendingDeepLink: MutableStateFlow<Uri?>? = null) {
                     billState = billViewerState.bill,
                     loading = billViewerState.loading,
                     error = billViewerState.error,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    chamber = uiState.chamber,
+                    houseNo = uiState.houseNo,
                 )
             }
 
@@ -325,7 +338,11 @@ fun OireachtasApp(pendingDeepLink: MutableStateFlow<Uri?>? = null) {
                         viewModel.clearTranscript()
                         navController.popBackStack()
                     },
-                    onSpeakerClick = { memberUri -> navigateToMember(memberUri) }
+                    onSpeakerClick = { memberUri -> navigateToMember(memberUri) },
+                    debateId = selectedDebate?.debateSectionUri ?: selectedDebate?.xmlUri,
+                    debateDate = selectedDebate?.date,
+                    chamber = uiState.chamber,
+                    houseNo = uiState.houseNo,
                 )
             }
 
@@ -368,6 +385,39 @@ fun OireachtasApp(pendingDeepLink: MutableStateFlow<Uri?>? = null) {
             
             composable("about") {
                 AboutScreen(onBack = { navController.popBackStack() })
+            }
+
+            composable("saved") {
+                SavedItemsScreen(onBack = { navController.popBackStack() })
+            }
+
+            composable("collection/{slug}") { backStackEntry ->
+                val slug = backStackEntry.arguments?.getString("slug") ?: ""
+                PublicCollectionScreen(slug = slug, onBack = { navController.popBackStack() })
+            }
+
+            composable("compare") {
+                CompareMembersScreen(
+                    chamber = uiState.chamber,
+                    houseNo = uiState.houseNo,
+                    allMembers = uiState.allMembers,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable("search") {
+                GlobalSearchScreen(
+                    chamber = uiState.chamber,
+                    houseNo = uiState.houseNo,
+                    allMembers = uiState.allMembers,
+                    onBack = { navController.popBackStack() },
+                    onSelectMember = { m -> navigateToMember(m.uri) },
+                    onSelectDebate = navigateToDebate,
+                    onSelectBill = { billNo, billYear ->
+                        viewModel.loadBill(billNo, billYear)
+                        navController.navigate("bill_viewer/$billYear/$billNo")
+                    },
+                )
             }
         }
     }

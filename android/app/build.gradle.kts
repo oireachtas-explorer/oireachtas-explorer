@@ -24,6 +24,15 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+
+        // Cloudflare Worker base URL for public collection sharing.
+        // Mirrors the web's VITE_TRANSCRIPT_API_BASE — leaving it blank
+        // disables the feature at runtime (the UI shows a notice).
+        buildConfigField(
+            "String",
+            "WORKER_BASE_URL",
+            "\"${providers.gradleProperty("workerBaseUrl").orElse("").get()}\""
+        )
     }
 
     signingConfigs {
@@ -54,6 +63,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

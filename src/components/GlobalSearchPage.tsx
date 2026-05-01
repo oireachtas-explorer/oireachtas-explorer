@@ -35,6 +35,9 @@ export function GlobalSearchPage({
   const [submitted, setSubmitted] = useState(initialQuery ?? '');
   const [type, setType] = useState<ResultType>('all');
 
+  const term = submitted.trim().toLowerCase();
+  const hasSubmittedTerm = term.length > 0;
+
   useEffect(() => {
     setQuery(initialQuery ?? '');
     setSubmitted(initialQuery ?? '');
@@ -43,19 +46,18 @@ export function GlobalSearchPage({
   const debatesFetcher = useCallback((signal: AbortSignal) =>
     fetchGlobalDebates(80, 0, chamber, houseNo, '', undefined, undefined, signal),
   [chamber, houseNo]);
-  const { data: debatesData, loading: loadingDebates } = useAsync(debatesFetcher);
+  const { data: debatesData, loading: loadingDebates } = useAsync(debatesFetcher, { enabled: hasSubmittedTerm });
 
   const billsFetcher = useCallback((signal: AbortSignal) =>
     fetchGlobalLegislation(120, 0, chamber, houseNo, signal),
   [chamber, houseNo]);
-  const { data: billsData, loading: loadingBills } = useAsync(billsFetcher);
+  const { data: billsData, loading: loadingBills } = useAsync(billsFetcher, { enabled: hasSubmittedTerm });
 
   const questionsFetcher = useCallback((signal: AbortSignal) =>
     fetchGlobalQuestions(80, 0, chamber, houseNo, signal),
   [chamber, houseNo]);
-  const { data: questionsData, loading: loadingQuestions } = useAsync(questionsFetcher);
+  const { data: questionsData, loading: loadingQuestions } = useAsync(questionsFetcher, { enabled: hasSubmittedTerm });
 
-  const term = submitted.trim().toLowerCase();
   const memberResults = useMemo(() => {
     if (!term) return [];
     return allMembers.filter((m) =>

@@ -21,8 +21,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ie.oireachtas.explorer.data.model.Bill
 import ie.oireachtas.explorer.data.model.BillDocument
+import ie.oireachtas.explorer.data.saved.SavedItem
+import ie.oireachtas.explorer.data.saved.SavedItemType
 import ie.oireachtas.explorer.ui.components.ErrorMessage
 import ie.oireachtas.explorer.ui.components.LoadingIndicator
+import ie.oireachtas.explorer.ui.components.SaveButton
 import ie.oireachtas.explorer.ui.components.SectionHeader
 import ie.oireachtas.explorer.ui.theme.OireachtasColors
 
@@ -34,7 +37,9 @@ fun BillViewerScreen(
     billState: Bill?,
     loading: Boolean,
     error: String?,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    chamber: String = "dail",
+    houseNo: Int = 34,
 ) {
     val context = LocalContext.current
 
@@ -44,6 +49,24 @@ fun BillViewerScreen(
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                }
+            },
+            actions = {
+                billState?.let { bill ->
+                    Box(Modifier.padding(end = 8.dp)) {
+                        SaveButton(
+                            item = SavedItem(
+                                id = "bill:$billYear/$billNo",
+                                type = SavedItemType.bill,
+                                title = bill.title.ifBlank { "Bill $billNo/$billYear" },
+                                subtitle = bill.status.ifBlank { null },
+                                urlHash = "#/$chamber/$houseNo/bill?no=$billNo&year=$billYear",
+                                chamber = chamber,
+                                houseNo = houseNo,
+                                savedAt = "",
+                            )
+                        )
+                    }
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(

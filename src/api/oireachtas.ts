@@ -24,6 +24,12 @@ import { VOTE_HISTORY_CHUNK_LIMIT } from '../constants';
 
 export type ChamberType = 'house' | 'committee' | '';
 
+export interface CommitteeDebateIndexItem {
+  code: string;
+  name: string;
+  count: number;
+}
+
 const BASE = 'https://api.oireachtas.ie/v1';
 
 function defaultHouseNo(chamber: Chamber): number {
@@ -39,6 +45,36 @@ function houseUri(chamber: Chamber, houseNo: number): string {
 // and doesn't need revalidation within a session.
 const responseCache = new Map<string, Promise<unknown>>();
 
+function abortError(): Error {
+  const error = new Error('The operation was aborted.');
+  error.name = 'AbortError';
+  return error;
+}
+
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
+}
+
+function withAbortSignal<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(abortError());
+
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => { reject(abortError()); };
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(toError(error));
+      }
+    );
+  });
+}
+
 function apiFetch<T>(path: string, params: Record<string, string | number> = {}, signal?: AbortSignal): Promise<T> {
   const url = new URL(`${BASE}${path}`);
   for (const [key, value] of Object.entries(params)) {
@@ -47,9 +83,9 @@ function apiFetch<T>(path: string, params: Record<string, string | number> = {},
   const key = url.toString();
 
   const cached = responseCache.get(key);
-  if (cached) return cached as Promise<T>;
+  if (cached) return withAbortSignal(cached as Promise<T>, signal);
 
-  const promise = fetch(key, { signal })
+  const promise = fetch(key)
     .then((response) => {
       if (!response.ok) {
         throw new Error(`API error ${response.status}: ${response.statusText}`);
@@ -63,7 +99,7 @@ function apiFetch<T>(path: string, params: Record<string, string | number> = {},
     });
 
   responseCache.set(key, promise);
-  return promise;
+  return withAbortSignal(promise, signal);
 }
 
 export function clearApiCache(): void {
@@ -374,6 +410,64 @@ export async function fetchGlobalDebates(
     };
   });
   return { debates, total: data.head.counts.resultCount ?? debates.length };
+}
+
+export async function fetchCommitteeDebateIndex(
+  chamber: Chamber,
+  houseNo: number,
+  signal?: AbortSignal
+): Promise<CommitteeDebateIndexItem[]> {
+  const range = getHouseDateRange(chamber, houseNo);
+  const pageSize = 100;
+  const baseParams: Record<string, string | number> = {
+    chamber_type: 'committee',
+    date_start: range.start,
+    date_end: range.end,
+    limit: pageSize,
+  };
+
+  const firstPage = await apiFetch<OireachtasResult<DebateResult>>(
+    '/debates',
+    { ...baseParams, skip: 0 },
+    signal
+  );
+  const total = firstPage.head.counts.resultCount ?? firstPage.results.length;
+  const pages = [firstPage];
+
+  if (total > pageSize) {
+    const requests: Promise<OireachtasResult<DebateResult>>[] = [];
+    for (let skip = pageSize; skip < total; skip += pageSize) {
+      requests.push(apiFetch<OireachtasResult<DebateResult>>(
+        '/debates',
+        { ...baseParams, skip },
+        signal
+      ));
+    }
+    pages.push(...await Promise.all(requests));
+  }
+
+  const committees = new Map<string, CommitteeDebateIndexItem>();
+  for (const page of pages) {
+    for (const result of page.results) {
+      const house = result.debateRecord.house;
+      const code = house?.committeeCode;
+      if (!code) continue;
+
+      const existing = committees.get(code);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        committees.set(code, {
+          code,
+          name: house.showAs,
+          count: 1,
+        });
+      }
+    }
+  }
+
+  return Array.from(committees.values())
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 // ── Divisions ─────────────────────────────────────────────────────────────────

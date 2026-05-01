@@ -398,7 +398,20 @@ data class Member(
     val constituencyCode: String,
     val photoUrl: String,
     val offices: List<String>,
+    val officeHoldings: List<OfficeHolding> = emptyList(),
     val committees: List<CommitteeMembership>
+)
+
+/**
+ * Mirrors src/types.ts `OfficeHolding`. Each entry preserves start/end
+ * dates so the UI can distinguish current cabinet posts from past ones,
+ * matching the web's cabinet roster on the home page.
+ */
+data class OfficeHolding(
+    val name: String,
+    val startDate: String?,
+    val endDate: String?,
+    val current: Boolean,
 )
 
 data class CommitteeMembership(

@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.sp
 import ie.oireachtas.explorer.data.api.DailMetadata
 import ie.oireachtas.explorer.data.model.ConstituencyItem
 import ie.oireachtas.explorer.data.model.Member
+import ie.oireachtas.explorer.data.model.OfficeHolding
+import ie.oireachtas.explorer.ui.components.MemberAvatar
 import ie.oireachtas.explorer.ui.components.ErrorMessage
 import ie.oireachtas.explorer.ui.components.LoadingIndicator
 import ie.oireachtas.explorer.ui.theme.OireachtasColors
@@ -32,7 +34,9 @@ fun HomeScreen(
     uiState: MainUiState,
     onChamberChange: (String) -> Unit,
     onSelectConstituency: (ConstituencyItem) -> Unit,
-    onGlobalDebates: () -> Unit
+    onGlobalDebates: () -> Unit,
+    onSelectMember: ((Member) -> Unit)? = null,
+    onCompareMembers: (() -> Unit)? = null,
 ) {
     var search by remember { mutableStateOf("") }
     val chamberName = remember(uiState.chamber) { DailMetadata.chamberName(uiState.chamber) }
@@ -80,6 +84,16 @@ fun HomeScreen(
         if (!uiState.loadingMembers && uiState.allMembers.isNotEmpty()) {
             item {
                 PartyBreakdownCard(members = uiState.allMembers)
+            }
+        }
+
+        // ── Cabinet roster (Dáil only) ───────────────────────────────
+        if (uiState.chamber == "dail" && !uiState.loadingMembers) {
+            item {
+                val cabinet = remember(uiState.allMembers) { extractCabinet(uiState.allMembers) }
+                if (cabinet.isNotEmpty()) {
+                    CabinetCard(cabinet = cabinet, onSelectMember = onSelectMember)
+                }
             }
         }
 
@@ -174,6 +188,12 @@ fun HomeScreen(
                     ) {
                         Text("Browse All Debates", fontWeight = FontWeight.SemiBold)
                     }
+                    if (onCompareMembers != null) {
+                        Spacer(Modifier.height(8.dp))
+                        TextButton(onClick = onCompareMembers) {
+                            Text("Compare two members →", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
                 }
             }
         }
@@ -197,6 +217,65 @@ private fun StatBox(value: String, label: String) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             letterSpacing = 0.8.sp
         )
+    }
+}
+
+// ── Cabinet roster ────────────────────────────────────────────────────────────
+
+private val CABINET_PRIORITIES = listOf("Taoiseach", "Tánaiste", "Minister", "Attorney General")
+
+private fun isCabinetOffice(office: OfficeHolding): Boolean {
+    val n = office.name
+    return n == "Taoiseach" || n == "Tánaiste" || n.startsWith("Minister") || n == "Attorney General"
+}
+
+private fun cabinetOfficeOrder(name: String): Int {
+    val idx = CABINET_PRIORITIES.indexOfFirst { name.startsWith(it) || name == it }
+    return if (idx == -1) CABINET_PRIORITIES.size else idx
+}
+
+internal data class CabinetEntry(val member: Member, val office: OfficeHolding)
+
+internal fun extractCabinet(members: List<Member>): List<CabinetEntry> {
+    val entries = members.flatMap { m ->
+        m.officeHoldings.filter { it.current && isCabinetOffice(it) }.map { o -> CabinetEntry(m, o) }
+    }
+    return entries.sortedWith(
+        compareBy<CabinetEntry> { cabinetOfficeOrder(it.office.name) }.thenBy { it.office.name }
+    )
+}
+
+@Composable
+private fun CabinetCard(cabinet: List<CabinetEntry>, onSelectMember: ((Member) -> Unit)?) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(1.dp),
+        shape = RoundedCornerShape(12.dp),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Cabinet", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text("${cabinet.size} ministers", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Spacer(Modifier.height(10.dp))
+            cabinet.forEach { entry ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = onSelectMember != null) { onSelectMember?.invoke(entry.member) }
+                        .padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    MemberAvatar(entry.member.photoUrl, entry.member.fullName, size = 36.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(entry.member.fullName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(entry.office.name, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+        }
     }
 }
 

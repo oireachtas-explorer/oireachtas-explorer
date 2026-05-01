@@ -34,8 +34,25 @@ Available as a **single-page web application**, a **native Android application**
     not just a sample
   - paginated lists of debates, voting record, questions asked, and
     legislation sponsored
+  - chamber-aware party membership, so members who changed party across
+    Dálaí are shown with the affiliation that matches the selected term
   - party and constituency links that navigate to filtered views
   - activity stat cards link directly through to the relevant tab
+- **Questions analytics on member pages.**
+  - department bar chart showing which departments received the most
+    questions
+  - monthly line chart with separate total and oral question series
+  - hover tooltips plus click-to-filter and cross-filter behaviour
+    between the charts and the questions list
+  - official ministerial responses fetched inline in the expanded
+    question view
+- **Member comparison workspace.**
+  - compare up to three members side by side
+  - type-ahead member search with ordered results
+  - custom date ranges and term-aware preset periods for current and
+    historic Dálaí
+  - shared activity, voting, office, and committee summaries for the
+    selected period
 - **Advanced debates index:**
   - filter by chamber: Dáil Plenary, Committees, or All
   - explicit committee picker (Public Accounts, Health, Transport, etc.)
@@ -46,9 +63,21 @@ Available as a **single-page web application**, a **native Android application**
     navigable inline
 - **Official debate transcripts.** Click into any debate to read the
   published XML transcript.
-- **Parliamentary questions with official responses.** Expand a
-  question to fetch and display the minister's transcribed reply.
+- **Joint committee pages.** Committee membership pages can merge Dáil
+  and Seanad membership for joint committees, with chamber-specific
+  labelling such as `T.D.` and `Senator`.
+- **Cabinet overview on each Dáil home page.**
+  - collapsible by default to keep the landing page compact
+  - deduplicated office holders with multiple offices grouped together
+  - current office holders shown separately from former holders whose
+    appointments ended during the same Dáil term
 - **Bill pages** with status, current stage, source, and sponsors.
+- **Saved research workspace.**
+  - save debates, transcript passages, bills, and member records locally
+  - publish read-only public research collections through Cloudflare
+    Workers KV
+  - copy persistent Worker-backed short links from the share UI instead
+    of long internal hash URLs
 - **Accessibility.** Keyboard-navigable tabs, skip link, ARIA tablist
   wiring, labelled regions, and visible focus states.
 - **Session-scoped response cache** in the API layer so re-fetched
@@ -307,6 +336,8 @@ Examples:
 #/34/debates                    Global debates index
 #/34/constituency/DN/Dublin%20North   Members for a constituency
 #/34/member/<uri>/…             Member profile
+#/34/compare                    Member comparison workspace
+#/34/saved                      Saved items and published collections
 ```
 
 ## Contributing

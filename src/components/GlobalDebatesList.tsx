@@ -1,6 +1,7 @@
 import { useCallback, useState, useEffect, useMemo } from 'react';
 import { usePaginatedList } from '../hooks/usePaginatedList';
-import { fetchGlobalDebates, type ChamberType } from '../api/oireachtas';
+import { useAsync } from '../hooks/useAsync';
+import { fetchCommitteeDebateIndex, fetchGlobalDebates, type ChamberType } from '../api/oireachtas';
 import type { Chamber, Debate, View } from '../types';
 import { formatDateShort } from '../utils/format';
 import { getHouseDateRange, chamberName } from '../utils/dail';
@@ -21,12 +22,6 @@ function committeeCodeFromUri(uri: string): string | null {
   const seg = match[1].toLowerCase();
   if (seg === 'dail' || seg === 'seanad') return null;
   return seg;
-}
-
-function humanizeCommittee(code: string): string {
-  return code
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function committeeCodeForDebate(d: Debate): string | null {
@@ -107,18 +102,15 @@ export function GlobalDebatesList({ chamber, houseNo, onNavigateToDebate }: Glob
 
   const allRows = useMemo(() => flattenDebates(allDebates), [allDebates]);
 
-  // Committee dropdown: count per-section rows so the tallies reflect what
-  // the user actually sees, not the number of sitting days.
-  const availableCommittees = useMemo(() => {
-    if (chamberType !== 'committee') return [];
-    const counts = new Map<string, number>();
-    for (const r of allRows) {
-      if (r.committeeCode) counts.set(r.committeeCode, (counts.get(r.committeeCode) ?? 0) + 1);
-    }
-    return Array.from(counts.entries())
-      .map(([code, count]) => ({ code, name: humanizeCommittee(code), count }))
-      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-  }, [allRows, chamberType]);
+  const committeeFetcher = useCallback((signal: AbortSignal) =>
+    fetchCommitteeDebateIndex(chamber, houseNo, signal),
+  [chamber, houseNo]);
+  const {
+    data: committeeIndex,
+    loading: loadingCommittees,
+    error: committeeIndexError,
+  } = useAsync(committeeFetcher, { enabled: chamberType === 'committee' });
+  const availableCommittees = committeeIndex ?? [];
 
   const term = searchTerm.toLowerCase();
 
@@ -198,16 +190,19 @@ export function GlobalDebatesList({ chamber, houseNo, onNavigateToDebate }: Glob
         {chamberType === 'committee' && (
           <div className="filter-group" style={{ flex: '1 1 200px' }}>
             <label className="filter-label">
-              Committee{availableCommittees.length > 0 ? ` (${availableCommittees.length})` : ''}
+              Committee{loadingCommittees ? ' (loading)' : availableCommittees.length > 0 ? ` (${availableCommittees.length})` : ''}
             </label>
             <select className="filter-select" value={committeeCode}
               onChange={e => { setCommitteeCode(e.target.value); }}
-              disabled={availableCommittees.length === 0}>
-              <option value="">All committees</option>
+              disabled={loadingCommittees || availableCommittees.length === 0}>
+              <option value="">{loadingCommittees ? 'Loading committees...' : 'All committees'}</option>
               {availableCommittees.map(c => (
                 <option key={c.code} value={c.code}>{c.name} ({c.count})</option>
               ))}
             </select>
+            {committeeIndexError && (
+              <div className="filter-help">Committee list unavailable; loaded debates can still be searched.</div>
+            )}
           </div>
         )}
 

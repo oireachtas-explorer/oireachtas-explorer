@@ -76,7 +76,10 @@ export function DebateViewerPage({ xmlUri, debateSectionUri, title, focusMemberU
   };
 
   // Extract unique speakers for summary
-  const uniqueSpeakers = Array.from(new Set(segments?.map(s => s.speakerName) ?? []));
+  const uniqueSpeakers = useMemo(
+    () => Array.from(new Set(segments?.map(s => s.speakerName) ?? [])),
+    [segments]
+  );
   const normalizedSearch = searchTerm.trim().toLowerCase();
   const visibleSegments = useMemo(() => {
     if (!segments) return [];

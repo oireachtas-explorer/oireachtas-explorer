@@ -20,9 +20,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import ie.oireachtas.explorer.data.model.SpeechSegment
+import ie.oireachtas.explorer.data.saved.SavedItem
+import ie.oireachtas.explorer.data.saved.SavedItemType
 import ie.oireachtas.explorer.ui.components.ErrorMessage
 import ie.oireachtas.explorer.ui.components.LoadingIndicator
 import ie.oireachtas.explorer.ui.components.MemberAvatar
+import ie.oireachtas.explorer.ui.components.SaveButton
 import ie.oireachtas.explorer.viewmodel.TranscriptState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,7 +34,11 @@ fun DebateViewerScreen(
     title: String,
     transcriptState: TranscriptState,
     onBack: () -> Unit,
-    onSpeakerClick: ((String) -> Unit)? = null
+    onSpeakerClick: ((String) -> Unit)? = null,
+    debateId: String? = null,
+    debateDate: String? = null,
+    chamber: String = "dail",
+    houseNo: Int = 34,
 ) {
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
@@ -39,6 +46,24 @@ fun DebateViewerScreen(
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                }
+            },
+            actions = {
+                if (debateId != null) {
+                    Box(Modifier.padding(end = 8.dp)) {
+                        SaveButton(
+                            item = SavedItem(
+                                id = "debate:$debateId",
+                                type = SavedItemType.debate,
+                                title = title,
+                                sourceDate = debateDate,
+                                urlHash = "#/$chamber/$houseNo/debate?id=$debateId",
+                                chamber = chamber,
+                                houseNo = houseNo,
+                                savedAt = "",
+                            )
+                        )
+                    }
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(

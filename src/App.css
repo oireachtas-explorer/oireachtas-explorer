@@ -749,6 +749,7 @@ body {
   font-family: var(--fi); font-size: 14px; color: var(--text); background: var(--surface); transition: var(--t);
 }
 .filter-select:focus, .filter-input:focus { outline: none; border-color: var(--g500); }
+.filter-help { font-size: 12px; color: var(--text4); line-height: 1.35; }
 .filter-search { flex: 2; min-width: 200px; }
 .date-group { margin-bottom: 24px; }
 .date-group-label {

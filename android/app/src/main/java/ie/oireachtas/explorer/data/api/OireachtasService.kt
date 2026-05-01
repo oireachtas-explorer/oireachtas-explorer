@@ -561,7 +561,8 @@ object OireachtasService {
     private fun normaliseMember(m: MemberDetail, chamber: String, houseNo: Int): Member {
         val party = extractParty(m.memberships ?: emptyList())
         val (constName, constCode) = extractConstituency(m.memberships ?: emptyList())
-        val offices = extractOffices(m.memberships ?: emptyList())
+        val officeHoldings = extractOfficeHoldings(m.memberships ?: emptyList())
+        val offices = officeHoldings.filter { it.current }.map { it.name }
         val committees = extractCommittees(m.memberships ?: emptyList(), chamber, houseNo)
         val photoUrl = "${m.uri}/image/thumb"
 
@@ -576,6 +577,7 @@ object OireachtasService {
             constituencyCode = constCode,
             photoUrl = photoUrl,
             offices = offices,
+            officeHoldings = officeHoldings,
             committees = committees
         )
     }
@@ -640,21 +642,29 @@ object OireachtasService {
     }
 
     /**
-     * Extract current offices (no end date).
+     * Extract every office held by the member (current and historical).
+     * Mirrors the OfficeHolding shape on the web side so the cabinet
+     * roster can show both active ministers and former office holders.
      */
-    private fun extractOffices(memberships: List<Membership>): List<String> {
-        val offices = mutableListOf<String>()
+    private fun extractOfficeHoldings(memberships: List<Membership>): List<OfficeHolding> {
+        val out = mutableListOf<OfficeHolding>()
         for (ms in memberships) {
             val detail = ms.membership ?: continue
             for (o in detail.offices ?: emptyList()) {
                 val office = o.office ?: continue
-                if (office.dateRange?.end == null) {
-                    val name = office.officeName?.showAs ?: office.showAs ?: continue
-                    offices.add(name)
-                }
+                val name = office.officeName?.showAs ?: office.showAs ?: continue
+                val end = office.dateRange?.end
+                out.add(
+                    OfficeHolding(
+                        name = name,
+                        startDate = office.dateRange?.start,
+                        endDate = end,
+                        current = end == null,
+                    )
+                )
             }
         }
-        return offices
+        return out.sortedWith(compareByDescending<OfficeHolding> { it.current }.thenByDescending { it.startDate ?: "" })
     }
 
     /**
