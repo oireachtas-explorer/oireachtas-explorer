@@ -13,6 +13,7 @@ import { BillViewerPage } from './components/BillViewerPage';
 import { CompareMembersPage } from './components/CompareMembersPage';
 import { GlobalSearchPage } from './components/GlobalSearchPage';
 import { SavedItemsPage } from './components/SavedItemsPage';
+import { PublicCollectionPage } from './components/PublicCollectionPage';
 import { AttributionFooter } from './components/AttributionFooter';
 import { CommitteePage } from './components/CommitteePage';
 import { OfficesPage } from './components/OfficesPage';
@@ -362,6 +363,9 @@ export default function App() {
 
       case 'saved':
         return <SavedItemsPage onBack={handleBack} />;
+
+      case 'collection':
+        return <PublicCollectionPage slug={view.slug} onBack={handleBack} />;
 
       case 'compare':
         return (

@@ -2,6 +2,13 @@ name = "oireachtas-explorer-transcripts"
 main = "src/index.js"
 compatibility_date = "2026-05-01"
 
+# Optional for shared public research collections:
+[[kv_namespaces]]
+binding = "RESEARCH_COLLECTIONS"
+id = "20cb8b391c44470885f97fff2981c423"
+preview_id = "9de4bea0acff4488aae11b081e960751"
+
 [vars]
+APP_BASE_URL = "https://oireachtas-explorer.ie"
 ALLOWED_ORIGINS = "https://oireachtas-explorer.ie,http://localhost:5174,http://127.0.0.1:5174"
 CACHE_TTL_SECONDS = "86400"

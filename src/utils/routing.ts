@@ -10,6 +10,7 @@ export function viewToHash(view: View, chamber: Chamber, houseNo: number): strin
     case 'bill-viewer': return `${base}/bill/${view.billYear}/${view.billNo}`;
     case 'search': return `${base}/search${view.query ? '/' + encodeURIComponent(view.query) : ''}`;
     case 'saved': return `${base}/saved`;
+    case 'collection': return `${base}/collection/${encodeURIComponent(view.slug)}`;
     case 'compare': return `${base}/compare`;
     case 'party': return `${base}/party/${encodeURIComponent(view.partyName)}`;
     case 'members': return `${base}/constituency/${encodeURIComponent(view.constituencyCode)}/${encodeURIComponent(view.constituencyName)}`;
@@ -75,6 +76,9 @@ export function parseHash(hash: string): ParsedHash {
   }
   if (rest[0] === 'saved') {
     return { chamber, houseNo, view: { kind: 'saved' } };
+  }
+  if (rest[0] === 'collection' && rest[1]) {
+    return { chamber, houseNo, view: { kind: 'collection', slug: decodeURIComponent(rest[1]) } };
   }
   if (rest[0] === 'compare') {
     return { chamber, houseNo, view: { kind: 'compare' } };

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { copyText } from '../utils/clipboard';
+import { copyShareUrl, resolveShareUrl } from '../utils/clipboard';
+import { isShortLinksEnabled } from '../api/shortlinks';
 
 interface ShareModalProps {
   url: string;
@@ -8,6 +9,9 @@ interface ShareModalProps {
 
 export function ShareModal({ url, onClose }: ShareModalProps) {
   const [copied, setCopied] = useState(false);
+  const [displayUrl, setDisplayUrl] = useState(url);
+  const shortLinksEnabled = isShortLinksEnabled();
+  const [loadingShortLink, setLoadingShortLink] = useState(shortLinksEnabled);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -15,12 +19,36 @@ export function ShareModal({ url, onClose }: ShareModalProps) {
     return () => { window.removeEventListener('keydown', h); };
   }, [onClose]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setDisplayUrl(url);
+
+    if (!shortLinksEnabled) {
+      setLoadingShortLink(false);
+      return () => { cancelled = true; };
+    }
+
+    setLoadingShortLink(true);
+    void resolveShareUrl(url)
+      .then((resolvedUrl) => {
+        if (!cancelled) setDisplayUrl(resolvedUrl);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingShortLink(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [url, shortLinksEnabled]);
+
   const handleCopy = () => {
     const finish = () => {
       setCopied(true);
       setTimeout(() => { setCopied(false); }, 2000);
     };
-    copyText(url).then(finish).catch(finish);
+    copyShareUrl(url).then((resolvedUrl) => {
+      setDisplayUrl(resolvedUrl);
+      finish();
+    }).catch(finish);
   };
 
   return (
@@ -33,12 +61,15 @@ export function ShareModal({ url, onClose }: ShareModalProps) {
         <input
           className="share-modal__url"
           readOnly
-          value={url}
+          value={displayUrl}
           onFocus={(e) => { e.currentTarget.select(); }}
         />
+        {loadingShortLink && (
+          <div className="share-modal__status">Generating short link…</div>
+        )}
         <div className="share-modal__actions">
           <button className="share-modal__copy-btn" onClick={handleCopy}>
-            {copied ? 'Copied!' : 'Copy link'}
+            {copied ? 'Copied!' : shortLinksEnabled ? 'Copy short link' : 'Copy link'}
           </button>
         </div>
       </div>

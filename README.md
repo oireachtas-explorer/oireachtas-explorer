@@ -55,6 +55,8 @@ Available as a **single-page web application**, a **native Android application**
   pages are served from memory without hitting the network twice.
 - **Client-side IndexedDB cache** for parsed debate transcripts, so
   large XML documents are only parsed once per visit.
+- **Shared public research collections.** Publish a saved dossier as a
+  read-only public link backed by Cloudflare Workers KV.
 
 ## Data source and licence
 
@@ -138,7 +140,7 @@ oireachtas/
 │   ├── api/                   # Oireachtas API wrappers
 │   ├── components/            # UI components
 │   └── ...
-├── worker/                    # Optional Cloudflare Worker transcript proxy
+├── worker/                    # Optional Cloudflare Worker + KV features
 ├── android/                   # Native Android application
 │   ├── app/                   # App module
 │   │   ├── src/main/java/     # Kotlin source code
@@ -192,12 +194,13 @@ npm run worker:dev  # run the Cloudflare Worker locally with Wrangler
 npm run worker:deploy # deploy the Cloudflare Worker
 ```
 
-### Optional transcript Worker
+### Optional Cloudflare Worker
 
 The GitHub Pages site can run without a backend, but transcript XML
 loading is more reliable when routed through the Cloudflare Worker in
-`worker/`. The Worker only proxies and caches XML documents from
-`https://data.oireachtas.ie`; it does not store user data.
+`worker/`. The Worker proxies and caches XML documents from
+`https://data.oireachtas.ie`, and can optionally publish shared public
+research collections and persistent short links when bound to Workers KV.
 
 1. Create or sign in to a Cloudflare account.
 2. From the project root, run:
@@ -223,6 +226,42 @@ For GitHub Actions, add a repository variable named
 `VITE_TRANSCRIPT_API_BASE` with that Worker URL and expose it to the
 build step. If the variable is blank, the app falls back to direct XML
 fetching and the public proxy path used during local development.
+
+### Optional Workers KV for public research collections
+
+If you want the `Saved Items` page to publish shareable public
+collections, create a Workers KV namespace and bind it to the same
+Worker.
+
+1. Create the production and preview namespaces:
+
+```sh
+npx wrangler kv namespace create RESEARCH_COLLECTIONS
+npx wrangler kv namespace create RESEARCH_COLLECTIONS --preview
+```
+
+2. Paste the returned ids into `worker/wrangler.toml`:
+
+```toml
+[[kv_namespaces]]
+binding = "RESEARCH_COLLECTIONS"
+id = "<your-production-kv-namespace-id>"
+preview_id = "<your-preview-kv-namespace-id>"
+```
+
+3. Confirm `APP_BASE_URL` and `ALLOWED_ORIGINS` in
+   `worker/wrangler.toml` match your live site domain.
+
+4. Redeploy the Worker:
+
+```sh
+npm run worker:deploy
+```
+
+After that, `Saved Items` can publish a read-only public collection
+URL that anyone can open in the app, and the share dialogs will copy
+persistent Worker-backed short links instead of the long internal hash
+routes.
 
 ## Deploying to GitHub Pages
 

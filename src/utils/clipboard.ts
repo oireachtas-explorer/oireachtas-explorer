@@ -1,3 +1,5 @@
+import { createShortLink } from '../api/shortlinks';
+
 function copyViaExecCommand(text: string) {
   const ta = document.createElement('textarea');
   ta.value = text;
@@ -16,4 +18,19 @@ export async function copyText(text: string): Promise<void> {
   } catch {
     copyViaExecCommand(text);
   }
+}
+
+export async function resolveShareUrl(url: string): Promise<string> {
+  try {
+    const shortLink = await createShortLink(url);
+    return shortLink.shortUrl;
+  } catch {
+    return url;
+  }
+}
+
+export async function copyShareUrl(url: string): Promise<string> {
+  const resolved = await resolveShareUrl(url);
+  await copyText(resolved);
+  return resolved;
 }

@@ -1,8 +1,10 @@
-import { Bookmark, Clipboard, Download, Trash2 } from 'lucide-react';
+import { AlertCircle, Bookmark, Clipboard, Download, Link as LinkIcon, RadioTower, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { isPublicCollectionsEnabled, publishPublicCollection, type PublicResearchCollection } from '../api/publicCollections';
 import { useSavedItems } from '../hooks/useSavedItems';
-import { copyText } from '../utils/clipboard';
+import { copyShareUrl, copyText } from '../utils/clipboard';
 import { formatDateShort } from '../utils/format';
+import { viewToHash } from '../utils/routing';
 import type { SavedItem } from '../utils/savedItems';
 
 interface SavedItemsPageProps {
@@ -53,6 +55,12 @@ function buildResearchDossier(items: SavedItem[]): string {
 export function SavedItemsPage({ onBack }: SavedItemsPageProps) {
   const { items, remove } = useSavedItems();
   const [copied, setCopied] = useState(false);
+  const [publishTitle, setPublishTitle] = useState('Research collection');
+  const [publishDescription, setPublishDescription] = useState('');
+  const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [published, setPublished] = useState<PublicResearchCollection | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const handleCopyDossier = () => {
     copyText(buildResearchDossier(items)).then(() => {
@@ -69,6 +77,42 @@ export function SavedItemsPage({ onBack }: SavedItemsPageProps) {
     a.download = 'oireachtas-research-dossier.md';
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handlePublish = async () => {
+    setPublishing(true);
+    setPublishError(null);
+    setPublished(null);
+
+    try {
+      const collection = await publishPublicCollection({
+        title: publishTitle,
+        description: publishDescription,
+        items,
+      });
+      setPublished(collection);
+    } catch (err) {
+      setPublishError(err instanceof Error ? err.message : 'Unable to publish this collection.');
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const publicHash = published
+    ? viewToHash(
+      { kind: 'collection', slug: published.slug },
+      published.items[0]?.chamber ?? 'dail',
+      published.items[0]?.houseNo ?? 34
+    )
+    : '';
+  const publicLink = published ? `${window.location.origin}${window.location.pathname}${publicHash}` : '';
+
+  const handleCopyPublicLink = () => {
+    if (!publicLink) return;
+    copyShareUrl(publicLink).then(() => {
+      setLinkCopied(true);
+      window.setTimeout(() => { setLinkCopied(false); }, 1800);
+    }).catch(() => { setLinkCopied(false); });
   };
 
   return (
@@ -95,6 +139,72 @@ export function SavedItemsPage({ onBack }: SavedItemsPageProps) {
               <Download size={16} aria-hidden="true" />
               Download Markdown
             </button>
+          </div>
+          <div className="publish-panel">
+            <div className="publish-panel__header">
+              <div>
+                <h2>Publish a public collection</h2>
+                <p>Share this dossier as a read-only public link backed by Cloudflare Workers KV.</p>
+              </div>
+              <span className="type-badge">{items.length} items</span>
+            </div>
+
+            {isPublicCollectionsEnabled() ? (
+              <>
+                <div className="publish-panel__form">
+                  <label className="field-label">
+                    Collection title
+                    <input
+                      type="text"
+                      value={publishTitle}
+                      onChange={(e) => { setPublishTitle(e.target.value); }}
+                      maxLength={120}
+                      placeholder="Election coverage dossier"
+                    />
+                  </label>
+                  <label className="field-label">
+                    Description
+                    <textarea
+                      value={publishDescription}
+                      onChange={(e) => { setPublishDescription(e.target.value); }}
+                      maxLength={400}
+                      rows={3}
+                      placeholder="Why these records matter, the angle you are tracking, or the historical thread you are documenting."
+                    />
+                  </label>
+                </div>
+                <div className="saved-toolbar">
+                  <button type="button" onClick={() => { void handlePublish(); }} disabled={publishing || items.length === 0 || !publishTitle.trim()}>
+                    <RadioTower size={16} aria-hidden="true" />
+                    {publishing ? 'Publishing…' : 'Publish collection'}
+                  </button>
+                  {published && (
+                    <button type="button" onClick={handleCopyPublicLink}>
+                      <LinkIcon size={16} aria-hidden="true" />
+                      {linkCopied ? 'Copied link' : 'Copy short link'}
+                    </button>
+                  )}
+                </div>
+                {publishError && <div className="error-banner">{publishError}</div>}
+                {published && (
+                  <div className="publish-panel__success">
+                    <div className="publish-panel__success-meta">
+                      <span className="type-badge">Published</span>
+                      <span>{formatDateShort(published.createdAt)}</span>
+                    </div>
+                    <a className="saved-card__title" href={publicHash}>
+                      {published.title}
+                    </a>
+                    <div className="saved-card__citation">{publicLink}</div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="publish-panel__notice">
+                <AlertCircle size={16} aria-hidden="true" />
+                This build does not have a Cloudflare Worker URL configured, so publishing is currently unavailable.
+              </div>
+            )}
           </div>
           <div className="saved-list">
             {items.map((item) => (

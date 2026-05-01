@@ -11,6 +11,7 @@ export type View =
   | { kind: 'bill-viewer'; billNo: string; billYear: string }
   | { kind: 'search'; query?: string }
   | { kind: 'saved' }
+  | { kind: 'collection'; slug: string }
   | { kind: 'compare' }
   | { kind: 'party'; partyName: string }
   | { kind: 'members'; constituencyCode: string; constituencyName: string }
