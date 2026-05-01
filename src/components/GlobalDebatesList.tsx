@@ -1,7 +1,7 @@
 import { useCallback, useState, useEffect, useMemo } from 'react';
 import { usePaginatedList } from '../hooks/usePaginatedList';
 import { useAsync } from '../hooks/useAsync';
-import { fetchCommitteeDebateIndex, fetchGlobalDebates, type ChamberType, type CommitteeDebateIndexItem } from '../api/oireachtas';
+import { fetchCommitteeDebateIndex, fetchCommitteeDebateSearch, fetchGlobalDebates, type ChamberType, type CommitteeDebateIndexItem } from '../api/oireachtas';
 import type { Chamber, Debate, View } from '../types';
 import { formatDateShort } from '../utils/format';
 import { getHouseDateRange, chamberName } from '../utils/dail';
@@ -108,8 +108,6 @@ export function GlobalDebatesList({ chamber, houseNo, onNavigateToDebate }: Glob
 
   const { items: allDebates, total, loading, error, loadingMore, handleLoadMore } = usePaginatedList<Debate>(fetcher, 'debates', DEFAULT_PAGE_SIZE);
 
-  const allRows = useMemo(() => flattenDebates(allDebates), [allDebates]);
-
   const committeeFetcher = useCallback((signal: AbortSignal) =>
     fetchCommitteeDebateIndex(chamber, houseNo, signal),
   [chamber, houseNo]);
@@ -125,6 +123,15 @@ export function GlobalDebatesList({ chamber, houseNo, onNavigateToDebate }: Glob
     [availableCommittees, committeeCode]
   );
 
+  const committeeSearchFetcher = useCallback((signal: AbortSignal) =>
+    fetchCommitteeDebateSearch(chamber, houseNo, committeeCode, dateStart || undefined, dateEnd || undefined, signal),
+  [chamber, houseNo, committeeCode, dateStart, dateEnd]);
+  const {
+    data: committeeSearch,
+    loading: loadingCommitteeSearch,
+    error: committeeSearchError,
+  } = useAsync(committeeSearchFetcher, { enabled: chamberType === 'committee' && committeeCode !== '' });
+
   const committeeMatches = useMemo(() => {
     const query = normalizeSearch(committeeQuery);
     if (!query) return [];
@@ -138,19 +145,18 @@ export function GlobalDebatesList({ chamber, houseNo, onNavigateToDebate }: Glob
   }, [availableCommittees, committeeQuery]);
 
   const term = searchTerm.toLowerCase();
+  const sourceDebates = committeeCode && committeeSearch ? committeeSearch.debates : allDebates;
+  const sourceRows = useMemo(() => flattenDebates(sourceDebates), [sourceDebates]);
 
   const filteredRows = useMemo(() => {
-    return allRows.filter((r) => {
-      if (chamberType === 'committee' && committeeCode) {
-        if (r.committeeCode !== committeeCode) return false;
-      }
+    return sourceRows.filter((r) => {
       if (!term) return true;
       if (r.title.toLowerCase().includes(term)) return true;
       if (r.debate.chamber.toLowerCase().includes(term)) return true;
       if (r.debate.date.includes(term)) return true;
       return false;
     });
-  }, [allRows, chamberType, committeeCode, term]);
+  }, [sourceRows, term]);
 
   // Group filtered rows by month — must be before any early returns (rules of hooks)
   const monthGroups = useMemo(() => {
@@ -204,7 +210,7 @@ export function GlobalDebatesList({ chamber, houseNo, onNavigateToDebate }: Glob
       <div className="filter-bar">
         <div className="filter-group filter-search">
           <label className="filter-label">
-            Search{term && ` — ${filteredRows.length} of ${allRows.length} match`}
+            Search{term && ` — ${filteredRows.length} of ${sourceRows.length} match`}
           </label>
           <input className="filter-input" type="text"
             placeholder="Search debates by title, chamber or date…"
@@ -290,8 +296,17 @@ export function GlobalDebatesList({ chamber, houseNo, onNavigateToDebate }: Glob
       </div>
 
       {/* Results grouped by month */}
-      {monthGroups.length === 0 ? (
-        <div className="empty-state">No debates match your filters. Try clearing the search or loading more.</div>
+      {committeeSearchError ? (
+        <div className="error-banner" role="alert">Failed to search committee debates: {committeeSearchError}</div>
+      ) : loadingCommitteeSearch ? (
+        <div className="loading-state" role="status" aria-live="polite">
+          <div className="spinner" aria-hidden="true" />
+          <span>Searching {selectedCommittee?.name ?? 'committee'} debates…</span>
+        </div>
+      ) : monthGroups.length === 0 ? (
+        <div className="empty-state">
+          {committeeCode ? 'No debates match your filters. Try clearing the search.' : 'No debates match your filters. Try clearing the search or loading more.'}
+        </div>
       ) : monthGroups.map(([ym, rows]) => (
         <div key={ym} className="date-group">
           <div className="date-group-label">{groupLabel(ym)}</div>
@@ -325,7 +340,7 @@ export function GlobalDebatesList({ chamber, houseNo, onNavigateToDebate }: Glob
         </div>
       ))}
 
-      {allDebates.length < total && (
+      {!committeeCode && allDebates.length < total && (
         <button className="load-more-btn" onClick={() => { void handleLoadMore(); }} disabled={loadingMore}>
           {loadingMore ? 'Loading…' : `Load more (${total - allDebates.length} days remaining)`}
         </button>

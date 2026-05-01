@@ -325,6 +325,33 @@ function applyDateParams(params: Record<string, string | number>, dateStart?: st
   if (dateEnd) params.date_end = dateEnd;
 }
 
+function committeeCodeFromDebateResult(result: DebateResult): string | undefined {
+  const fromHouse = result.debateRecord.house?.committeeCode;
+  if (fromHouse) return fromHouse;
+
+  const match = /\/debateRecord\/([a-z][a-z0-9_]+)\//i.exec(result.debateRecord.uri);
+  const code = match?.[1]?.toLowerCase();
+  return code && code !== 'dail' && code !== 'seanad' ? code : undefined;
+}
+
+function toDebate(result: DebateResult): Debate {
+  const d = result.debateRecord;
+  const sections = d.debateSections.map(s => ({
+    uri: s.debateSection.uri,
+    title: s.debateSection.showAs
+  }));
+  const firstSection = d.debateSections.at(0)?.debateSection;
+  return {
+    uri: firstSection?.uri ?? d.uri,
+    date: d.date,
+    title: firstSection?.showAs ?? d.debateType,
+    chamber: chamberFromUri(d.uri),
+    xmlUri: d.formats?.xml?.uri,
+    sections,
+    debateSectionUri: firstSection?.uri,
+  };
+}
+
 export async function fetchDebates(memberUri: string, limit = 20, skip = 0, chamber: Chamber, houseNo: number, signal?: AbortSignal, dateStart?: string, dateEnd?: string): Promise<{ debates: Debate[]; total: number }> {
   const params: Record<string, string | number> = { member_id: memberUri, limit, skip, chamber_id: houseUri(chamber, houseNo) };
   applyDateParams(params, dateStart, dateEnd);
@@ -333,23 +360,7 @@ export async function fetchDebates(memberUri: string, limit = 20, skip = 0, cham
     params,
     signal
   );
-  const debates = data.results.map((r) => {
-    const d = r.debateRecord;
-    const sections = d.debateSections.map(s => ({
-      uri: s.debateSection.uri,
-      title: s.debateSection.showAs
-    }));
-    const firstSection = d.debateSections.at(0)?.debateSection;
-    return {
-      uri: firstSection?.uri ?? d.uri,
-      date: d.date,
-      title: firstSection?.showAs ?? d.debateType,
-      chamber: chamberFromUri(d.uri),
-      xmlUri: d.formats?.xml?.uri,
-      sections,
-      debateSectionUri: firstSection?.uri,
-    };
-  });
+  const debates = data.results.map(toDebate);
   return { debates, total: data.head.counts.resultCount ?? debates.length };
 }
 
@@ -392,24 +403,53 @@ export async function fetchGlobalDebates(
     params,
     signal
   );
-  const debates = data.results.map((r) => {
-    const d = r.debateRecord;
-    const sections = d.debateSections.map(s => ({
-      uri: s.debateSection.uri,
-      title: s.debateSection.showAs
-    }));
-    const firstSection = d.debateSections.at(0)?.debateSection;
-    return {
-      uri: firstSection?.uri ?? d.uri,
-      date: d.date,
-      title: firstSection?.showAs ?? d.debateType,
-      chamber: chamberFromUri(d.uri),
-      xmlUri: d.formats?.xml?.uri,
-      sections,
-      debateSectionUri: firstSection?.uri,
-    };
-  });
+  const debates = data.results.map(toDebate);
   return { debates, total: data.head.counts.resultCount ?? debates.length };
+}
+
+export async function fetchCommitteeDebateSearch(
+  chamber: Chamber,
+  houseNo: number,
+  committeeCode: string,
+  dateStart?: string,
+  dateEnd?: string,
+  signal?: AbortSignal
+): Promise<{ debates: Debate[]; total: number }> {
+  const range = getHouseDateRange(chamber, houseNo);
+  const pageSize = 100;
+  const baseParams: Record<string, string | number> = {
+    chamber_type: 'committee',
+    date_start: dateStart ?? range.start,
+    date_end: dateEnd ?? range.end,
+    limit: pageSize,
+  };
+
+  const firstPage = await apiFetch<OireachtasResult<DebateResult>>(
+    '/debates',
+    { ...baseParams, skip: 0 },
+    signal
+  );
+  const total = firstPage.head.counts.resultCount ?? firstPage.results.length;
+  const pages = [firstPage];
+
+  if (total > pageSize) {
+    const requests: Promise<OireachtasResult<DebateResult>>[] = [];
+    for (let skip = pageSize; skip < total; skip += pageSize) {
+      requests.push(apiFetch<OireachtasResult<DebateResult>>(
+        '/debates',
+        { ...baseParams, skip },
+        signal
+      ));
+    }
+    pages.push(...await Promise.all(requests));
+  }
+
+  const debates = pages
+    .flatMap((page) => page.results)
+    .filter((result) => committeeCodeFromDebateResult(result) === committeeCode)
+    .map(toDebate);
+
+  return { debates, total: debates.length };
 }
 
 export async function fetchCommitteeDebateIndex(
