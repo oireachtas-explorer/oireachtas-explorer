@@ -651,9 +651,23 @@ function toBill(r: BillResult): Bill {
     source: b.source,
     originHouse: b.originHouse?.showAs ?? '',
     sponsors: b.sponsors
-      .map((s) => s.sponsor.by.showAs)
-      .filter(Boolean),
+      .map((s) => {
+        const memberName = s.sponsor.by?.showAs ?? '';
+        const officeName = s.sponsor.as?.showAs ?? '';
+        const name = memberName || officeName;
+        if (!name) return null;
+        return {
+          name,
+          uri: s.sponsor.by?.uri ?? s.sponsor.as?.uri ?? undefined,
+          isPrimary: s.sponsor.isPrimary,
+          kind: memberName ? 'member' as const : 'office' as const,
+        };
+      })
+      .filter((sponsor): sponsor is NonNullable<typeof sponsor> => sponsor !== null),
     currentStage: b.mostRecentStage?.event?.showAs ?? '—',
+    hasAct: b.act !== null,
+    currentStageProgress: b.mostRecentStage?.event?.progressStage,
+    currentStageCompleted: b.mostRecentStage?.event?.stageCompleted,
     lastUpdated: b.lastUpdated,
     stages: b.stages,
     versions: b.versions?.map(v => ({
@@ -688,12 +702,23 @@ export async function fetchGlobalLegislation(
   skip = 0,
   chamber: Chamber,
   houseNo: number,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  dateStart?: string,
+  dateEnd?: string,
+  scopeToHouse = true
 ): Promise<{ bills: Bill[]; total: number }> {
   const { start, end } = getHouseDateRange(chamber, houseNo);
+  const params: Record<string, string | number> = {
+    limit,
+    skip,
+    chamber,
+    date_start: dateStart ?? start,
+    date_end: dateEnd ?? end
+  };
+  if (scopeToHouse) params.chamber_id = houseUri(chamber, houseNo);
   const data = await apiFetch<OireachtasResult<BillResult>>(
     '/legislation',
-    { limit, skip, chamber_id: houseUri(chamber, houseNo), date_start: start, date_end: end },
+    params,
     signal
   );
   const bills = data.results.map(toBill);

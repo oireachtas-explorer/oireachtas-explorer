@@ -8,6 +8,7 @@ import { MemberGrid } from './components/MemberGrid';
 import { MemberCard } from './components/MemberCard';
 import { MemberProfile } from './components/MemberProfile';
 import { GlobalDebatesList } from './components/GlobalDebatesList';
+import { GlobalLegislationPage } from './components/GlobalLegislationPage';
 import { DebateViewerPage } from './components/DebateViewerPage';
 import { BillViewerPage } from './components/BillViewerPage';
 import { CompareMembersPage } from './components/CompareMembersPage';
@@ -516,6 +517,26 @@ export default function App() {
                   </button>
                 </div>
               </div>
+
+              <div style={{ marginTop: 48 }}>
+                <div className="section-hd">
+                  <div>
+                    <div className="section-title">{label} Legislation</div>
+                    <div className="section-sub">Government and Private Members' bills in this {label}</div>
+                  </div>
+                  <button className="section-link" onClick={() => { navigate({ kind: 'global-legislation' }); }}>
+                    View all →
+                  </button>
+                </div>
+                <div className="home-legislation-panel">
+                  <div className="home-legislation-panel__copy">
+                    Browse legislation for the selected {label}, filter by date within the parliamentary term, and open bill texts without leaving the app.
+                  </div>
+                  <button className="bill-pdf-btn" onClick={() => { navigate({ kind: 'global-legislation' }); }}>
+                    Browse Legislation
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         );
@@ -572,6 +593,16 @@ export default function App() {
               onNavigateToDebate={navigate}
             />
           </div>
+        );
+
+      case 'global-legislation':
+        return (
+          <GlobalLegislationPage
+            chamber={chamber}
+            houseNo={houseNo}
+            onBack={handleBack}
+            allMembers={allMembers}
+          />
         );
 
       case 'search':
@@ -650,6 +681,7 @@ export default function App() {
             chamber={chamber}
             houseNo={houseNo}
             onBack={handleBack}
+            allMembers={allMembers}
           />
         );
     }
@@ -667,6 +699,7 @@ export default function App() {
         <HeaderSearch onSubmit={(query) => { navigate({ kind: 'search', query }); }} />
 
         <nav className="app-header__nav" aria-label="Research tools">
+          <button type="button" onClick={() => { navigate({ kind: 'global-legislation' }); }}>Legislation</button>
           <button type="button" onClick={() => { navigate({ kind: 'compare' }); }}>Compare</button>
           <button type="button" onClick={() => { navigate({ kind: 'saved' }); }}>Saved</button>
         </nav>

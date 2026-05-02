@@ -6,6 +6,7 @@ export function viewToHash(view: View, chamber: Chamber, houseNo: number): strin
   switch (view.kind) {
     case 'home': return base;
     case 'global-debates': return `${base}/debates`;
+    case 'global-legislation': return `${base}/legislation`;
     case 'debate-viewer': return `${base}/debate/${encodeURIComponent(view.xmlUri)}/${encodeURIComponent(view.debateSectionUri)}/${encodeURIComponent(view.title)}${view.focusMemberUri ? '/' + encodeURIComponent(view.focusMemberUri) : ''}${view.speechIdx !== undefined ? '/' + String(view.speechIdx) : ''}`;
     case 'bill-viewer': return `${base}/bill/${view.billYear}/${view.billNo}`;
     case 'search': return `${base}/search${view.query ? '/' + encodeURIComponent(view.query) : ''}`;
@@ -47,6 +48,9 @@ export function parseHash(hash: string): ParsedHash {
 
   if (rest[0] === 'debates') {
     return { chamber, houseNo, view: { kind: 'global-debates', houseNo } };
+  }
+  if (rest[0] === 'legislation') {
+    return { chamber, houseNo, view: { kind: 'global-legislation' } };
   }
   if (rest[0] === 'debate' && rest[1] && rest[2]) {
     return {

@@ -88,7 +88,7 @@ export function GlobalSearchPage({
       includes(b.longTitleEn, term) ||
       includes(b.status, term) ||
       includes(b.source, term) ||
-      b.sponsors.some((sponsor) => includes(sponsor, term))
+      b.sponsors.some((sponsor) => includes(sponsor.name, term))
     ).slice(0, 20);
   }, [billsData, term]);
 

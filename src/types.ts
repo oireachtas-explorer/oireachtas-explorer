@@ -7,6 +7,7 @@ export type Chamber = 'dail' | 'seanad';
 export type View =
   | { kind: 'home' }
   | { kind: 'global-debates'; houseNo: number }
+  | { kind: 'global-legislation' }
   | { kind: 'debate-viewer'; xmlUri: string; debateSectionUri: string; title: string; focusMemberUri?: string; speechIdx?: number }
   | { kind: 'bill-viewer'; billNo: string; billYear: string }
   | { kind: 'search'; query?: string }
@@ -304,8 +305,8 @@ export interface Question {
 
 export interface BillSponsorRaw {
   sponsor: {
-    as: { showAs: string | null; uri: string | null };
-    by: { showAs: string; uri: string };
+    as: { showAs: string | null; uri: string | null } | null;
+    by: { showAs: string | null; uri: string | null } | null;
     isPrimary: boolean;
   };
 }
@@ -342,6 +343,7 @@ export interface BillResult {
     longTitleEn: string;
     status: string;
     source: string;
+    act: { showAs?: string; uri?: string } | null;
     originHouse?: { showAs: string; uri: string };
     sponsors: BillSponsorRaw[];
     stages: BillStageRaw[];
@@ -379,6 +381,13 @@ export interface BillDocument {
   xmlUri?: string;
 }
 
+export interface BillSponsor {
+  name: string;
+  uri?: string;
+  isPrimary: boolean;
+  kind: 'member' | 'office';
+}
+
 export interface Bill {
   uri: string;
   billNo: string;
@@ -388,8 +397,11 @@ export interface Bill {
   status: string;
   source: string;
   originHouse: string;
-  sponsors: string[];
+  sponsors: BillSponsor[];
   currentStage: string;
+  hasAct: boolean;
+  currentStageProgress?: number;
+  currentStageCompleted?: boolean;
   lastUpdated: string;
   stages?: BillStageRaw[];
   versions?: BillDocument[];

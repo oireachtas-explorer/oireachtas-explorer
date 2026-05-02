@@ -3,9 +3,10 @@ import { fetchBill } from '../api/oireachtas';
 import { useCallback, useMemo, useState } from 'react';
 import { formatDateShort, billStatusLabel, billStatusClass } from '../utils/format';
 import { FileText, Download } from 'lucide-react';
-import type { Bill, BillDocument, Chamber } from '../types';
+import type { Bill, BillDocument, Chamber, Member } from '../types';
 import { SaveButton } from './SaveButton';
 import { viewToHash } from '../utils/routing';
+import { sponsorProfileHash } from '../utils/sponsors';
 
 interface BillViewerPageProps {
   billNo: string;
@@ -13,9 +14,10 @@ interface BillViewerPageProps {
   chamber: Chamber;
   houseNo: number;
   onBack: () => void;
+  allMembers: Member[];
 }
 
-export function BillViewerPage({ billNo, billYear, chamber, houseNo, onBack }: BillViewerPageProps) {
+export function BillViewerPage({ billNo, billYear, chamber, houseNo, onBack, allMembers }: BillViewerPageProps) {
   const fetcher = useCallback((signal: AbortSignal) => fetchBill(billNo, billYear, signal), [billNo, billYear]);
   const { data: bill, loading, error } = useAsync(fetcher);
   const [activeDocKey, setActiveDocKey] = useState('');
@@ -98,11 +100,19 @@ export function BillViewerPage({ billNo, billYear, chamber, houseNo, onBack }: B
           <div style={{ flex: 1, minWidth: '300px' }}>
             <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: 'var(--color-text-primary)' }}>Sponsors</h3>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-              {bill.sponsors.map((s, i) => (
-                <span key={i} style={{ padding: '6px 14px', background: 'var(--color-green-50)', color: 'var(--color-accent)', borderRadius: 'var(--radius-pill)', fontSize: '0.9rem', fontWeight: 600, border: '1px solid var(--color-green-100)' }}>
-                  {s}
-                </span>
-              ))}
+              {bill.sponsors.map((sponsor, i) => {
+                const href = sponsorProfileHash(sponsor, allMembers, chamber, houseNo);
+                const style = { padding: '6px 14px', background: 'var(--color-green-50)', color: 'var(--color-accent)', borderRadius: 'var(--radius-pill)', fontSize: '0.9rem', fontWeight: 600, border: '1px solid var(--color-green-100)', textDecoration: 'none' };
+                return href ? (
+                  <a key={`${sponsor.name}:${sponsor.uri ?? i}`} href={href} style={style}>
+                    {sponsor.name}
+                  </a>
+                ) : (
+                  <span key={`${sponsor.name}:${sponsor.uri ?? i}`} style={style}>
+                    {sponsor.name}
+                  </span>
+                );
+              })}
             </div>
           </div>
           
