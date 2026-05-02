@@ -38,6 +38,11 @@ function isCabinetOffice(office: OfficeHolding): boolean {
     || office.name === 'Attorney General';
 }
 
+function isChairOffice(office: OfficeHolding): boolean {
+  const lower = office.name.toLowerCase();
+  return lower.includes('ceann comhairle') || lower.includes('cathaoirleach');
+}
+
 function cabinetOfficeOrder(office: OfficeHolding | string): number {
   const officeName = typeof office === 'string' ? office : office.name;
   const index = CABINET_PRIORITIES.findIndex((prefix) => officeName.startsWith(prefix) || officeName === prefix);
@@ -266,6 +271,24 @@ export default function App() {
       );
   }, [allMembers, chamber]);
 
+  const chairMembers = useMemo(() => {
+    return allMembers
+      .map((member) => ({
+        member,
+        offices: member.offices
+          .filter(isChairOffice)
+          .sort((a, b) =>
+            Number(b.current) - Number(a.current) || a.name.localeCompare(b.name)
+          ),
+      }))
+      .filter(({ offices }) => offices.length > 0)
+      .sort((a, b) =>
+        Number(b.offices[0].current) - Number(a.offices[0].current)
+        || a.offices[0].name.localeCompare(b.offices[0].name)
+        || a.member.lastName.localeCompare(b.member.lastName)
+      );
+  }, [allMembers]);
+
   useEffect(() => {
     setCabinetExpanded(false);
   }, [chamber, houseNo]);
@@ -328,6 +351,72 @@ export default function App() {
                     houseNo={houseNo}
                   />
                 </div>
+              </div>
+
+              <div style={{ marginTop: 48 }}>
+                <div className="section-hd section-hd--stack-mobile">
+                  <div>
+                    <div className="section-title">Chairs</div>
+                    <div className="section-sub">
+                      {chamber === 'dail' ? 'Ceann Comhairle & Leas-Cheann Comhairle' : 'Cathaoirleach & Leas-Chathaoirleach'}
+                    </div>
+                  </div>
+                </div>
+
+                {loadingMembers ? (
+                  <div className="loading-state" role="status" aria-live="polite">
+                    <div className="spinner" aria-hidden="true" />
+                    <span>Loading chair members…</span>
+                  </div>
+                ) : chairMembers.length > 0 ? (
+                  <div className="cabinet-grid">
+                    {chairMembers.map(({ member, offices }) => (
+                      <button
+                        key={member.uri}
+                        className="cabinet-card"
+                        onClick={() => { handleSelectMember(member.uri, member.fullName, member.constituencyCode, member.constituency); }}
+                      >
+                        <div className="cabinet-card__photo-wrap">
+                          <img
+                            src={member.photoUrl}
+                            alt={member.fullName}
+                            loading="lazy"
+                            className="cabinet-card__photo"
+                            onError={(e) => {
+                              const el = e.currentTarget;
+                              el.style.display = 'none';
+                              const fallback = el.nextElementSibling as HTMLElement | null;
+                              if (fallback) fallback.style.display = 'flex';
+                            }}
+                          />
+                          <div className="cabinet-card__initials" style={{ display: 'none' }}>
+                            {member.firstName[0]}{member.lastName[0]}
+                          </div>
+                        </div>
+                        <div className="cabinet-card__body">
+                          <div className="cabinet-card__name">{member.fullName}</div>
+                          <div className="cabinet-card__meta">
+                            <span className="party-badge" style={{ backgroundColor: partyColor(member.party) }}>
+                              {member.party}
+                            </span>
+                            <span className="cabinet-card__constituency">{member.constituency}</span>
+                          </div>
+                          <ul className="cabinet-card__offices">
+                            {offices.map((office) => (
+                              <li key={`${office.name}:${office.endDate ?? 'current'}`} className={`cabinet-card__office${office.current ? '' : ' cabinet-card__office--former'}`}>
+                                {formatCabinetOffice(office)}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="empty-state">
+                    <p>No chair appointments were found for this session.</p>
+                  </div>
+                )}
               </div>
 
               {chamber === 'dail' && (
