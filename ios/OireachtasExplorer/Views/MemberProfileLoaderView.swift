@@ -7,11 +7,12 @@ struct MemberProfileLoaderView: View {
     @State private var isLoading = true
     @State private var error: String?
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var session: AppSessionModel
     
     var body: some View {
         Group {
             if let member = member {
-                MemberProfileView(member: member)
+                MemberProfileView(member: member, chamber: session.chamber, houseNo: session.selectedHouseNo)
             } else {
                 VStack(spacing: 0) {
                     header
@@ -31,12 +32,16 @@ struct MemberProfileLoaderView: View {
             }
         }
         .navigationBarHidden(true)
-        .task {
-            guard member == nil else { return }
+        .task(id: "\(memberUri)-\(session.chamber.rawValue)-\(session.selectedHouseNo)") {
             isLoading = true
             error = nil
+            member = nil
             do {
-                let members = try await OireachtasAPI.shared.getMembers(memberUri: memberUri)
+                let members = try await OireachtasAPI.shared.getMembers(
+                    chamber: session.chamber,
+                    houseNo: session.selectedHouseNo,
+                    memberUri: memberUri
+                )
                 if let fetched = members.first {
                     self.member = fetched
                 } else {

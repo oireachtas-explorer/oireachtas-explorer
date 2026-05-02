@@ -78,13 +78,13 @@ struct StageDots: View {
 
 #Preview {
     let stages = [
-        BillStage(name: "Intro",       date: "2025-01-15", isDone: true,  isCurrent: false),
-        BillStage(name: "1st",         date: "2025-01-15", isDone: true,  isCurrent: false),
-        BillStage(name: "2nd",         date: nil,           isDone: false, isCurrent: true),
-        BillStage(name: "Committee",   date: nil,           isDone: false, isCurrent: false),
-        BillStage(name: "Report",      date: nil,           isDone: false, isCurrent: false),
-        BillStage(name: "3rd",         date: nil,           isDone: false, isCurrent: false),
-        BillStage(name: "Enacted",     date: nil,           isDone: false, isCurrent: false),
+        BillStage(id: "intro", name: "Intro", date: "2025-01-15", house: "Dáil Éireann", outcome: nil, isDone: true, isCurrent: false),
+        BillStage(id: "first", name: "1st", date: "2025-01-15", house: "Dáil Éireann", outcome: nil, isDone: true, isCurrent: false),
+        BillStage(id: "second", name: "2nd", date: nil, house: "Dáil Éireann", outcome: nil, isDone: false, isCurrent: true),
+        BillStage(id: "committee", name: "Committee", date: nil, house: "Dáil Éireann", outcome: nil, isDone: false, isCurrent: false),
+        BillStage(id: "report", name: "Report", date: nil, house: "Dáil Éireann", outcome: nil, isDone: false, isCurrent: false),
+        BillStage(id: "third", name: "3rd", date: nil, house: "Dáil Éireann", outcome: nil, isDone: false, isCurrent: false),
+        BillStage(id: "enacted", name: "Enacted", date: nil, house: "Dáil Éireann", outcome: nil, isDone: false, isCurrent: false),
     ]
-    return StageDots(stages: stages).padding()
+    StageDots(stages: stages).padding()
 }

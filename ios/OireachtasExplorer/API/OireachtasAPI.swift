@@ -177,6 +177,14 @@ actor OireachtasAPI {
         return result.results.compactMap { normalizeBill($0.bill) }
     }
 
+    func getBill(billNo: String, billYear: String) async throws -> Bill? {
+        let result: APIResult<LegislationItem> = try await fetch(
+            "legislation",
+            params: ["bill_no": billNo, "bill_year": billYear, "limit": "1"]
+        )
+        return result.results.compactMap { normalizeBill($0.bill) }.first
+    }
+
     // MARK: - Normalisation
 
     private func normalizeMember(_ raw: MemberRaw, chamber: Chamber, houseNo: Int) -> Member? {
@@ -186,9 +194,12 @@ actor OireachtasAPI {
             $0.house?.houseCode == chamber.rawValue && $0.house?.houseNo == "\(houseNo)"
         } ?? ms.first
 
-        let party = extractParty(ms)
-        let constituency = extractConstituency(ms)
-        let offices = ms.flatMap { m in
+        let scopedMemberships = ms.filter {
+            $0.house?.houseCode == chamber.rawValue && $0.house?.houseNo == "\(houseNo)"
+        }
+        let party = extractParty(scopedMemberships.isEmpty ? ms : scopedMemberships)
+        let constituency = extractConstituency(scopedMemberships.isEmpty ? ms : scopedMemberships)
+        let offices = (scopedMemberships.isEmpty ? ms : scopedMemberships).flatMap { m in
             (m.offices ?? []).compactMap { w -> String? in
                 guard w.office?.dateRange?.end == nil else { return nil }
                 return w.office?.officeName?.showAs ?? w.office?.showAs
@@ -303,22 +314,61 @@ actor OireachtasAPI {
 
         let stages: [BillStage] = rawStages.enumerated().compactMap { i, sw in
             guard let event = sw.event, let name = event.showAs else { return nil }
-            let isDone = event.date != nil
+            let stageDate = event.date ?? event.dates?.compactMap(\.date).first
+            let isDone = event.stageCompleted ?? (stageDate != nil)
             // A stage is "current" if it's the most recent stage and not yet done,
             // or if it matches mostRecentStage name and all subsequent stages are undone.
-            let nextIsDone = i + 1 < rawStages.count ? rawStages[i + 1].event?.date != nil : false
+            let nextEvent = i + 1 < rawStages.count ? rawStages[i + 1].event : nil
+            let nextIsDone = nextEvent?.stageCompleted ?? (nextEvent?.date != nil || nextEvent?.dates?.compactMap(\.date).isEmpty == false)
             let isCurrent = isDone && !nextIsDone && name == recentName
-            return BillStage(name: name, date: event.date, isDone: isDone, isCurrent: isCurrent)
+            return BillStage(
+                id: event.uri ?? "\(name)-\(stageDate ?? "\(i)")",
+                name: name,
+                date: stageDate,
+                house: event.house?.showAs ?? event.chamber?.showAs ?? "",
+                outcome: event.stageOutcome,
+                isDone: isDone,
+                isCurrent: isCurrent
+            )
         }
 
-        let pdfUri = raw.versions?.first?.version.formats?.pdf?.uri
+        let versions = (raw.versions ?? []).enumerated().map { index, wrapper in
+            normalizeBillDocument(wrapper.version, fallbackID: "version-\(index)")
+        }
+        let relatedDocs = (raw.relatedDocs ?? []).enumerated().map { index, wrapper in
+            normalizeBillDocument(wrapper.relatedDoc, fallbackID: "related-\(index)")
+        }
+        let pdfUri = versions.first(where: { $0.pdfUri != nil })?.pdfUri
+        let currentStage = raw.mostRecentStage?.event?.showAs ?? stages.last(where: \.isDone)?.name ?? "—"
+
         return Bill(
             id: raw.uri, uri: raw.uri,
             billNo: raw.billNo ?? "", billYear: raw.billYear ?? "",
             title: title, longTitle: raw.longTitleEn,
-            status: raw.status ?? "", originHouse: raw.originHouse?.showAs ?? "Dáil Éireann",
-            sponsors: raw.sponsors?.compactMap { $0.sponsor?.by?.showAs } ?? [],
-            stages: stages, pdfUri: pdfUri
+            status: raw.status ?? "",
+            source: raw.source ?? "",
+            originHouse: raw.originHouse?.showAs ?? "Dáil Éireann",
+            sponsors: raw.sponsors?.compactMap { sponsor in
+                sponsor.sponsor?.by?.showAs ?? sponsor.sponsor?.as?.showAs
+            } ?? [],
+            currentStage: currentStage,
+            currentStageProgress: raw.mostRecentStage?.event?.progressStage,
+            currentStageCompleted: raw.mostRecentStage?.event?.stageCompleted,
+            lastUpdated: raw.lastUpdated,
+            stages: stages,
+            pdfUri: pdfUri,
+            versions: versions,
+            relatedDocs: relatedDocs
+        )
+    }
+
+    private func normalizeBillDocument(_ raw: DocumentRaw, fallbackID: String) -> BillDocument {
+        BillDocument(
+            id: "\(fallbackID)-\(raw.showAs ?? "")-\(raw.date ?? "")",
+            title: raw.showAs ?? "Document",
+            date: raw.date,
+            pdfUri: raw.formats?.pdf?.uri,
+            xmlUri: raw.formats?.xml?.uri
         )
     }
     // MARK: - Helpers
@@ -364,5 +414,71 @@ enum APIError: LocalizedError {
         case .badURL: return "Invalid URL"
         case .httpError(let code): return "Server returned \(code)"
         }
+    }
+}
+
+enum PublicCollectionAPIError: LocalizedError {
+    case notConfigured
+    case badURL
+    case httpError(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .notConfigured:
+            return "This build does not have a Cloudflare Worker URL configured for public collections."
+        case .badURL:
+            return "The configured public collections URL is invalid."
+        case .httpError(let message):
+            return message
+        }
+    }
+}
+
+actor PublicCollectionsAPI {
+    static let shared = PublicCollectionsAPI()
+
+    private let decoder = JSONDecoder()
+    private let base: URL?
+
+    init() {
+        let raw = Bundle.main.object(forInfoDictionaryKey: "PublicCollectionsAPIBaseURL") as? String
+            ?? Bundle.main.object(forInfoDictionaryKey: "TranscriptAPIBaseURL") as? String
+            ?? ""
+        let trimmed = raw
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        base = trimmed.isEmpty ? nil : URL(string: trimmed)
+    }
+
+    var isConfigured: Bool {
+        base != nil
+    }
+
+    func fetchCollection(slug: String) async throws -> PublicResearchCollection {
+        guard let base else { throw PublicCollectionAPIError.notConfigured }
+        let encodedSlug = slug.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? slug
+        guard let url = URL(string: "collections/\(encodedSlug)", relativeTo: base)?.absoluteURL else {
+            throw PublicCollectionAPIError.badURL
+        }
+
+        let (data, response) = try await URLSession.shared.data(from: url)
+        guard let http = response as? HTTPURLResponse else {
+            throw PublicCollectionAPIError.httpError("Public collection request did not return an HTTP response.")
+        }
+        guard http.statusCode == 200 else {
+            throw PublicCollectionAPIError.httpError(readErrorMessage(from: data) ?? "Request failed (\(http.statusCode)).")
+        }
+        return try decoder.decode(PublicResearchCollection.self, from: data)
+    }
+
+    private func readErrorMessage(from data: Data) -> String? {
+        guard
+            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let error = object["error"] as? String,
+            !error.isEmpty
+        else {
+            return nil
+        }
+        return error
     }
 }

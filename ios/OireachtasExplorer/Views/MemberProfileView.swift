@@ -22,31 +22,39 @@ final class MemberProfileViewModel: ObservableObject {
     var billsLoaded = false
     var countsLoaded = false
 
-    func loadCounts(memberUri: String) async {
+    func loadCounts(memberUri: String, chamber: Chamber, houseNo: Int) async {
         guard !countsLoaded else { return }
         countsLoaded = true
         loadingCounts = true
-        if let c = try? await OireachtasAPI.shared.memberCounts(memberUri: memberUri) {
+        if let c = try? await OireachtasAPI.shared.memberCounts(memberUri: memberUri, chamber: chamber, houseNo: houseNo) {
             counts = c
         }
         loadingCounts = false
     }
 
-    func loadDebates(memberUri: String) async {
+    func loadDebates(memberUri: String, chamber: Chamber, houseNo: Int) async {
         guard !debatesLoaded else { return }
         debatesLoaded = true
         loadingDebates = true
-        if let (d, _) = try? await OireachtasAPI.shared.getDebates(memberUri: memberUri, limit: 20) {
+        if let (d, _) = try? await OireachtasAPI.shared.getDebates(
+            memberUri: memberUri,
+            chamberId: houseUri(chamber: chamber, houseNo: houseNo),
+            limit: 20
+        ) {
             debates = d
         }
         loadingDebates = false
     }
 
-    func loadVotes(memberUri: String) async {
+    func loadVotes(memberUri: String, chamber: Chamber, houseNo: Int) async {
         guard !votesLoaded else { return }
         votesLoaded = true
         loadingVotes = true
-        if let v = try? await OireachtasAPI.shared.getDivisions(memberUri: memberUri, limit: 50) {
+        if let v = try? await OireachtasAPI.shared.getDivisions(
+            memberUri: memberUri,
+            chamberId: houseUri(chamber: chamber, houseNo: houseNo),
+            limit: 50
+        ) {
             votes = v
         }
         loadingVotes = false
@@ -62,11 +70,15 @@ final class MemberProfileViewModel: ObservableObject {
         loadingQuestions = false
     }
 
-    func loadBills(memberUri: String) async {
+    func loadBills(memberUri: String, chamber: Chamber, houseNo: Int) async {
         guard !billsLoaded else { return }
         billsLoaded = true
         loadingBills = true
-        if let b = try? await OireachtasAPI.shared.getLegislation(memberUri: memberUri, limit: 20) {
+        if let b = try? await OireachtasAPI.shared.getLegislation(
+            memberUri: memberUri,
+            chamberId: houseUri(chamber: chamber, houseNo: houseNo),
+            limit: 20
+        ) {
             bills = b
         }
         loadingBills = false
@@ -77,6 +89,8 @@ final class MemberProfileViewModel: ObservableObject {
 
 struct MemberProfileView: View {
     let member: Member
+    var chamber: Chamber = .dail
+    var houseNo: Int = currentDailNo
     @StateObject private var vm = MemberProfileViewModel()
     @State private var activeTab = "Overview"
     @State private var activeURL: URL?
@@ -122,7 +136,7 @@ struct MemberProfileView: View {
                             .font(.dmSerif(size: 18))
                             .foregroundColor(Color.headingText)
                         HStack(spacing: 6) {
-                            NavigationLink(destination: FilteredMembersView(filter: .party(member.party))) {
+                            NavigationLink(destination: MemberRouteGridScreen(mode: .party(member.party))) {
                                 PartyBadge(party: member.party, small: true)
                             }
                             .buttonStyle(.plain)
@@ -142,6 +156,7 @@ struct MemberProfileView: View {
                         }
                     }
                     Spacer()
+                    SaveResearchButton(item: member.savedItem(chamber: chamber, houseNo: houseNo))
                 }
             }
             .padding(16)
@@ -193,19 +208,19 @@ struct MemberProfileView: View {
         switch tab {
         case "Overview":
             if force { vm.countsLoaded = false }
-            Task { await vm.loadCounts(memberUri: uri) }
+            Task { await vm.loadCounts(memberUri: uri, chamber: chamber, houseNo: houseNo) }
         case "Debates":
             if force { vm.debatesLoaded = false }
-            Task { await vm.loadDebates(memberUri: uri) }
+            Task { await vm.loadDebates(memberUri: uri, chamber: chamber, houseNo: houseNo) }
         case "Votes":
             if force { vm.votesLoaded = false }
-            Task { await vm.loadVotes(memberUri: uri) }
+            Task { await vm.loadVotes(memberUri: uri, chamber: chamber, houseNo: houseNo) }
         case "Questions":
             if force { vm.questionsLoaded = false }
             Task { await vm.loadQuestions(memberUri: uri) }
         case "Legislation":
             if force { vm.billsLoaded = false }
-            Task { await vm.loadBills(memberUri: uri) }
+            Task { await vm.loadBills(memberUri: uri, chamber: chamber, houseNo: houseNo) }
         default: break
         }
     }
@@ -245,7 +260,7 @@ struct MemberProfileView: View {
                         .font(.dmSerif(size: 18))
                         .foregroundColor(Color.headingText)
                     ForEach(member.committees) { c in
-                        NavigationLink(destination: FilteredMembersView(filter: .committee(c.name))) {
+                        NavigationLink(destination: CommitteeRouteScreen(committeeUri: c.uri ?? "", committeeName: c.name)) {
                             HStack(spacing: 8) {
                                 Circle()
                                     .fill(partyColor(member.party))
@@ -623,6 +638,24 @@ struct MemberProfileView: View {
             .foregroundColor(Color.mutedText)
             .frame(maxWidth: .infinity)
             .padding(32)
+    }
+}
+
+private extension Member {
+    func savedItem(chamber: Chamber, houseNo: Int) -> SavedResearchItem {
+        SavedResearchItem(
+            id: "member:\(uri)",
+            type: .member,
+            title: fullName,
+            subtitle: "\(party) · \(constituency)",
+            citation: nil,
+            quote: nil,
+            sourceDate: nil,
+            urlHash: "#/\(chamber.rawValue)/\(houseNo)/member/\(uri.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? uri)/\(fullName.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? fullName)/\(constituencyCode.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? constituencyCode)/\(constituency.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? constituency)",
+            chamber: chamber,
+            houseNo: houseNo,
+            savedAt: ""
+        )
     }
 }
 

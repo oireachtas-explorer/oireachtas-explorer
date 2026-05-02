@@ -69,6 +69,169 @@ enum AppRoute: Hashable {
     case about
 }
 
+enum SavedResearchItemType: String, Codable {
+    case member
+    case bill
+    case debate
+    case speech
+    case question
+    case unknown
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        self = SavedResearchItemType(rawValue: raw) ?? .unknown
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+
+    var label: String {
+        switch self {
+        case .member: return "Member"
+        case .bill: return "Bill"
+        case .debate: return "Debate"
+        case .speech: return "Transcript passage"
+        case .question: return "Question"
+        case .unknown: return "Research item"
+        }
+    }
+}
+
+struct SavedResearchItem: Identifiable, Decodable {
+    let id: String
+    let type: SavedResearchItemType
+    let title: String
+    let subtitle: String?
+    let citation: String?
+    let quote: String?
+    let sourceDate: String?
+    let urlHash: String
+    let chamber: Chamber?
+    let houseNo: Int?
+    let savedAt: String
+}
+
+extension SavedResearchItem: Encodable {}
+
+struct PublicResearchCollection: Decodable {
+    let slug: String
+    let title: String
+    let description: String?
+    let createdAt: String
+    let itemCount: Int
+    let items: [SavedResearchItem]
+}
+
+enum SavedResearchStore {
+    private static let storageKey = "oireachtas-explorer:saved-items"
+
+    static func load() -> [SavedResearchItem] {
+        guard let data = UserDefaults.standard.data(forKey: storageKey) else { return [] }
+        let items = (try? JSONDecoder().decode([SavedResearchItem].self, from: data)) ?? []
+        return items.sorted { $0.savedAt > $1.savedAt }
+    }
+
+    static func isSaved(id: String) -> Bool {
+        load().contains { $0.id == id }
+    }
+
+    @discardableResult
+    static func toggle(_ item: SavedResearchItem) -> Bool {
+        var items = load()
+        if items.contains(where: { $0.id == item.id }) {
+            items.removeAll { $0.id == item.id }
+            save(items)
+            return false
+        }
+
+        items.insert(item.withSavedAt(Date().iso8601String), at: 0)
+        save(items)
+        return true
+    }
+
+    static func remove(id: String) {
+        save(load().filter { $0.id != id })
+    }
+
+    static func buildDossier(items: [SavedResearchItem]) -> String {
+        var lines = [
+            "# Oireachtas Explorer Research Dossier",
+            "",
+            "Generated: \(Date().displayString)",
+            ""
+        ]
+
+        for item in items {
+            lines.append("## \(item.title)")
+            lines.append("")
+            lines.append("- Type: \(item.type.label)")
+            lines.append("- Saved: \(formatPublicCollectionDateValue(item.savedAt))")
+            if let sourceDate = item.sourceDate, !sourceDate.isEmpty {
+                lines.append("- Source date: \(formatPublicCollectionDateValue(sourceDate))")
+            }
+            if let subtitle = item.subtitle, !subtitle.isEmpty {
+                lines.append("- Context: \(subtitle)")
+            }
+            lines.append("- Link: \(item.urlHash)")
+            if let citation = item.citation, !citation.isEmpty {
+                lines.append("- Citation: \(citation)")
+            }
+            if let quote = item.quote, !quote.isEmpty {
+                lines.append("")
+                lines.append("> \(quote.replacingOccurrences(of: "\n", with: "\n> "))")
+            }
+            lines.append("")
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+    private static func save(_ items: [SavedResearchItem]) {
+        guard let data = try? JSONEncoder().encode(items) else { return }
+        UserDefaults.standard.set(data, forKey: storageKey)
+    }
+}
+
+private extension SavedResearchItem {
+    func withSavedAt(_ value: String) -> SavedResearchItem {
+        SavedResearchItem(
+            id: id,
+            type: type,
+            title: title,
+            subtitle: subtitle,
+            citation: citation,
+            quote: quote,
+            sourceDate: sourceDate,
+            urlHash: urlHash,
+            chamber: chamber,
+            houseNo: houseNo,
+            savedAt: value
+        )
+    }
+}
+
+private extension Date {
+    var iso8601String: String {
+        ISO8601DateFormatter().string(from: self)
+    }
+
+    var displayString: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_IE")
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: self)
+    }
+}
+
+func formatPublicCollectionDateValue(_ raw: String) -> String {
+    let dateOnly = String(raw.prefix(10))
+    return formatRawDate(dateOnly)
+}
+
 private func ordinalSuffix(_ value: Int) -> String {
     if value % 100 >= 11 && value % 100 <= 13 { return "th" }
     switch value % 10 {
@@ -322,6 +485,7 @@ struct BillRaw: Decodable {
     let mostRecentStage: StageWrapper?
     let lastUpdated: String?
     let versions: [BillVersionWrapper]?
+    let relatedDocs: [RelatedDocumentWrapper]?
 }
 
 struct ChamberRef: Decodable {
@@ -334,6 +498,7 @@ struct SponsorWrapper: Decodable {
 
 struct SponsorRaw: Decodable {
     let by: MemberRefSimple?
+    let `as`: MemberRefSimple?
     let isPrimary: Bool?
 }
 
@@ -347,13 +512,27 @@ struct StageWrapper: Decodable {
 }
 
 struct StageEventRaw: Decodable {
+    let uri: String?
     let showAs: String?
     let date: String?
+    let dates: [StageEventDateRaw]?
+    let house: ChamberRef?
     let chamber: ChamberRef?
+    let stageOutcome: String?
+    let stageCompleted: Bool?
+    let progressStage: Int?
+}
+
+struct StageEventDateRaw: Decodable {
+    let date: String?
 }
 
 struct BillVersionWrapper: Decodable {
     let version: DocumentRaw
+}
+
+struct RelatedDocumentWrapper: Decodable {
+    let relatedDoc: DocumentRaw
 }
 
 struct DocumentRaw: Decodable {
@@ -501,20 +680,37 @@ struct Bill: Identifiable {
     let title: String
     let longTitle: String?
     let status: String
+    let source: String
     let originHouse: String
     let sponsors: [String]
+    let currentStage: String
+    let currentStageProgress: Int?
+    let currentStageCompleted: Bool?
+    let lastUpdated: String?
     let stages: [BillStage]
     let pdfUri: String?
+    let versions: [BillDocument]
+    let relatedDocs: [BillDocument]
 
     var isEnacted: Bool { status.lowercased().contains("enacted") }
 }
 
 struct BillStage: Identifiable {
-    let id = UUID()
+    let id: String
     let name: String
     let date: String?
+    let house: String
+    let outcome: String?
     let isDone: Bool
     let isCurrent: Bool
+}
+
+struct BillDocument: Identifiable {
+    let id: String
+    let title: String
+    let date: String?
+    let pdfUri: String?
+    let xmlUri: String?
 }
 
 // MARK: - Photo URL helper
@@ -560,6 +756,17 @@ func houseList(for chamber: Chamber) -> [HouseInfo] {
 
 func houseUri(chamber: Chamber, houseNo: Int) -> String {
     "https://data.oireachtas.ie/ie/oireachtas/house/\(chamber.rawValue)/\(houseNo)"
+}
+
+func pairedHouse(chamber: Chamber, houseNo: Int) -> (chamber: Chamber, houseNo: Int)? {
+    switch chamber {
+    case .dail:
+        let seanadNo = houseNo - seanadDailOffset
+        return seanadNo >= 1 && seanadNo <= latestSeanadNo ? (.seanad, seanadNo) : nil
+    case .seanad:
+        let dailNo = houseNo + seanadDailOffset
+        return dailNo >= 1 && dailNo <= latestDailNo ? (.dail, dailNo) : nil
+    }
 }
 
 extension URL: @retroactive Identifiable {
