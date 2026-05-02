@@ -178,11 +178,15 @@ struct DebateTranscriptView: View {
                         .foregroundColor(Color.headingText)
                 }
                 
-                ForEach(Array(segment.paragraphs.enumerated()), id: \.offset) { _, paragraph in
-                    Text(paragraph)
-                        .font(.inter(size: 15))
-                        .foregroundColor(Color.bodyText)
-                        .lineSpacing(4)
+                if let html = segment.htmlContent, !html.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    HTMLText(html: html)
+                } else {
+                    ForEach(Array(segment.paragraphs.enumerated()), id: \.offset) { _, paragraph in
+                        Text(paragraph)
+                            .font(.inter(size: 15))
+                            .foregroundColor(Color.bodyText)
+                            .lineSpacing(4)
+                    }
                 }
             }
             
@@ -199,5 +203,91 @@ struct DebateTranscriptView: View {
                 }
             }
         )
+    }
+}
+
+import WebKit
+
+struct HTMLText: View {
+    let html: String
+    @State private var dynamicHeight: CGFloat = .zero
+
+    var body: some View {
+        HTMLWebView(html: html, dynamicHeight: $dynamicHeight)
+            .frame(height: dynamicHeight)
+    }
+}
+
+struct HTMLWebView: UIViewRepresentable {
+    let html: String
+    @Binding var dynamicHeight: CGFloat
+
+    class Coordinator: NSObject, WKNavigationDelegate {
+        var parent: HTMLWebView
+
+        init(_ parent: HTMLWebView) {
+            self.parent = parent
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            webView.evaluateJavaScript("document.documentElement.scrollHeight", completionHandler: { (height, error) in
+                DispatchQueue.main.async {
+                    if let height = height as? CGFloat {
+                        self.parent.dynamicHeight = height
+                    }
+                }
+            })
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let webView = WKWebView()
+        webView.navigationDelegate = context.coordinator
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.isScrollEnabled = false
+        return webView
+    }
+
+    func updateUIView(_ uiView: WKWebView, context: Context) {
+        let styledHtml = """
+        <html>
+        <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <style>
+            body { 
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                font-size: 15px;
+                color: #3a3620;
+                line-height: 1.5;
+                margin: 0;
+                padding: 0;
+            }
+            p { margin-bottom: 1em; font-size: 15px; }
+            .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 1em; padding-bottom: 4px; }
+            table { min-width: 100%; border-collapse: collapse; font-size: 14px; }
+            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+            th { background-color: #f5f5f5; }
+        </style>
+        </head>
+        <body>
+        \(html)
+        <script>
+            var tables = document.querySelectorAll("table");
+            tables.forEach(function(table) {
+                var wrapper = document.createElement("div");
+                wrapper.className = "table-wrapper";
+                table.parentNode.insertBefore(wrapper, table);
+                wrapper.appendChild(table);
+            });
+        </script>
+        </body>
+        </html>
+        """
+        uiView.loadHTMLString(styledHtml, baseURL: nil)
     }
 }

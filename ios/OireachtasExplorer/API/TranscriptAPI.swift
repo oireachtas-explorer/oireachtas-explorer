@@ -6,6 +6,7 @@ struct SpeechSegment: Identifiable {
     let speakerName: String
     let memberUri: String?
     var paragraphs: [String]
+    var htmlContent: String?
 }
 
 enum TranscriptError: Error, LocalizedError {
@@ -77,6 +78,7 @@ class TranscriptXMLParser: NSObject, XMLParserDelegate {
     
     private var currentSpeakerId: String?
     private var currentParagraphs: [String] = []
+    private var currentHtml: String = ""
     private var currentText = ""
     
     private var parseError: Error?
@@ -112,15 +114,29 @@ class TranscriptXMLParser: NSObject, XMLParserDelegate {
             if let by = attributeDict["by"] {
                 currentSpeakerId = by.replacingOccurrences(of: "#", with: "")
                 currentParagraphs = []
+                currentHtml = ""
             }
-        } else if inTargetSection, currentSpeakerId != nil, elementName == "p" {
-            currentText = ""
+        } else if inTargetSection, currentSpeakerId != nil {
+            var tag = "<\(elementName)"
+            for (k, v) in attributeDict {
+                let escapedV = v.replacingOccurrences(of: "\"", with: "&quot;")
+                tag += " \(k)=\"\(escapedV)\""
+            }
+            tag += ">"
+            currentHtml += tag
+            
+            if elementName == "p" {
+                currentText = ""
+            }
         }
     }
     
     func parser(_ parser: XMLParser, foundCharacters string: String) {
         if inTargetSection, currentSpeakerId != nil {
             currentText += string
+            currentHtml += string.replacingOccurrences(of: "&", with: "&amp;")
+                                 .replacingOccurrences(of: "<", with: "&lt;")
+                                 .replacingOccurrences(of: ">", with: "&gt;")
         }
     }
     
@@ -136,18 +152,23 @@ class TranscriptXMLParser: NSObject, XMLParserDelegate {
                 
                 if let last = segments.last, last.speakerId == sid {
                     segments[segments.count - 1].paragraphs.append(contentsOf: currentParagraphs)
+                    segments[segments.count - 1].htmlContent = (segments[segments.count - 1].htmlContent ?? "") + currentHtml
                 } else {
-                    segments.append(SpeechSegment(speakerId: sid, speakerName: name, memberUri: uri, paragraphs: currentParagraphs))
+                    segments.append(SpeechSegment(speakerId: sid, speakerName: name, memberUri: uri, paragraphs: currentParagraphs, htmlContent: currentHtml))
                 }
             }
             currentSpeakerId = nil
             currentParagraphs = []
-        } else if inTargetSection, currentSpeakerId != nil, elementName == "p" {
-            let p = currentText.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !p.isEmpty {
-                currentParagraphs.append(p)
+            currentHtml = ""
+        } else if inTargetSection, currentSpeakerId != nil {
+            currentHtml += "</\(elementName)>"
+            if elementName == "p" {
+                let p = currentText.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !p.isEmpty {
+                    currentParagraphs.append(p)
+                }
+                currentText = ""
             }
-            currentText = ""
         }
         
         currentDepth -= 1
