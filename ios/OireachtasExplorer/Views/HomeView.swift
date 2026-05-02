@@ -1,5 +1,40 @@
 import SwiftUI
 
+private let cabinetPriorities = [
+    "taoiseach",
+    "tánaiste",
+    "minister for finance",
+    "minister for public expenditure, national development plan delivery and reform",
+    "minister for public expenditure, ndp delivery and reform",
+    "minister for justice",
+    "minister for foreign affairs",
+    "minister for health",
+    "minister for housing, local government and heritage",
+    "minister for education",
+    "minister for further and higher education, research, innovation and science",
+    "minister for enterprise, trade and employment",
+    "minister for agriculture, food and the marine",
+    "minister for children, equality, disability, integration and youth",
+    "minister for rural and community development",
+    "minister for tourism, culture, arts, gaeltacht, sport and media",
+    "minister for transport",
+    "attorney general",
+    "minister"
+]
+
+private func cabinetRank(for member: Member) -> Int {
+    var bestRank = cabinetPriorities.count
+    for office in member.offices {
+        let lower = office.lowercased()
+        if let index = cabinetPriorities.firstIndex(where: { lower.starts(with: $0) || lower == $0 }) {
+            if index < bestRank {
+                bestRank = index
+            }
+        }
+    }
+    return bestRank
+}
+
 @MainActor
 final class HomeViewModel: ObservableObject {
     @Published var memberCount: Int = 0
@@ -40,7 +75,12 @@ final class HomeViewModel: ObservableObject {
                         let lower = office.lowercased()
                         return lower == "taoiseach" || lower == "tánaiste" || lower.starts(with: "minister") || lower == "attorney general"
                     }
-                }.sorted { $0.fullName < $1.fullName }
+                }.sorted { 
+                    let rankA = cabinetRank(for: $0)
+                    let rankB = cabinetRank(for: $1)
+                    if rankA != rankB { return rankA < rankB }
+                    return $0.fullName < $1.fullName 
+                }
             } else {
                 cabinetMembers = []
             }

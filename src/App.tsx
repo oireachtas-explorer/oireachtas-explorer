@@ -60,8 +60,11 @@ function isChairOffice(office: OfficeHolding): boolean {
 }
 
 function cabinetOfficeOrder(office: OfficeHolding | string): number {
-  const officeName = typeof office === 'string' ? office : office.name;
-  const index = CABINET_PRIORITIES.findIndex((prefix) => officeName.startsWith(prefix) || officeName === prefix);
+  const officeName = (typeof office === 'string' ? office : office.name).toLowerCase();
+  const index = CABINET_PRIORITIES.findIndex((prefix) => {
+    const lowerPrefix = prefix.toLowerCase();
+    return officeName.startsWith(lowerPrefix) || officeName === lowerPrefix;
+  });
   return index === -1 ? CABINET_PRIORITIES.length : index;
 }
 
