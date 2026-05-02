@@ -43,7 +43,8 @@ function billMatchesTab(bill: Bill, tab: LegislationTab): boolean {
 }
 
 function byLatestDateDesc(a: Bill, b: Bill): number {
-  return b.lastUpdated.localeCompare(a.lastUpdated)
+  return b.contextDate.localeCompare(a.contextDate)
+    || b.lastUpdated.localeCompare(a.lastUpdated)
     || b.billYear.localeCompare(a.billYear)
     || Number(b.billNo) - Number(a.billNo);
 }
@@ -207,6 +208,7 @@ export function GlobalLegislationPage({ chamber, houseNo, onBack, allMembers }: 
               showDetailsLink
               allMembers={allMembers}
               collapsibleSummary
+              displayDate={bill.contextDate}
             />
           ))}
         </div>

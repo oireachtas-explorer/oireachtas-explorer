@@ -152,9 +152,10 @@ interface BillCardProps {
   showDetailsLink?: boolean;
   allMembers?: Member[];
   collapsibleSummary?: boolean;
+  displayDate?: string;
 }
 
-export function BillCard({ bill, chamber, houseNo, animationIndex = 0, showDetailsLink = false, allMembers, collapsibleSummary = false }: BillCardProps) {
+export function BillCard({ bill, chamber, houseNo, animationIndex = 0, showDetailsLink = false, allMembers, collapsibleSummary = false, displayDate }: BillCardProps) {
   const [pdfOpen, setPdfOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
@@ -176,7 +177,7 @@ export function BillCard({ bill, chamber, houseNo, animationIndex = 0, showDetai
             {billStatusLabel(bill.status)}
           </span>
           {bill.source && <span className="bill-sponsor-badge">{bill.source}</span>}
-          <span className="li-date" style={{ marginLeft: 'auto' }}>{formatDateShort(bill.lastUpdated)}</span>
+          <span className="li-date" style={{ marginLeft: 'auto' }}>{formatDateShort(displayDate ?? bill.lastUpdated)}</span>
         </div>
         <div className="bill-card-title">{bill.title}</div>
         {bill.longTitleEn ? (

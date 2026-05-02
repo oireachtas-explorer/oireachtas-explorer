@@ -402,6 +402,7 @@ export interface Bill {
   hasAct: boolean;
   currentStageProgress?: number;
   currentStageCompleted?: boolean;
+  contextDate: string;
   lastUpdated: string;
   stages?: BillStageRaw[];
   versions?: BillDocument[];

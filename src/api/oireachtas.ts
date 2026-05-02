@@ -668,6 +668,7 @@ function toBill(r: BillResult): Bill {
     hasAct: b.act !== null,
     currentStageProgress: b.mostRecentStage?.event?.progressStage,
     currentStageCompleted: b.mostRecentStage?.event?.stageCompleted,
+    contextDate: r.contextDate,
     lastUpdated: b.lastUpdated,
     stages: b.stages,
     versions: b.versions?.map(v => ({
