@@ -26,8 +26,8 @@ extension Color {
     static let cream         = Color(hex: "f5f2eb")   // app background
     static let gold          = Color(hex: "b8860b")   // accent / current stage
     static let cardBorder    = Color(hex: "ddd8cc")
-    static let mutedText     = Color(hex: "9a9070")
-    static let secondaryText = Color(hex: "6a6448")
+    static let mutedText     = Color(hex: "736b50")
+    static let secondaryText = Color(hex: "5a5535")
     static let bodyText      = Color(hex: "3a3620")
     static let headingText   = Color(hex: "1a180f")
 
@@ -73,11 +73,11 @@ func partyShort(_ name: String) -> String {
 // Without the files, these fall back to Georgia (a close serif match).
 
 extension Font {
-    static func dmSerif(size: CGFloat, italic: Bool = false) -> Font {
+    static func dmSerif(size: CGFloat, italic: Bool = false, relativeTo style: TextStyle = .body) -> Font {
         let name = italic ? "DMSerifDisplay-Italic" : "DMSerifDisplay-Regular"
         return UIFont(name: name, size: size) != nil
-            ? .custom(name, size: size)
-            : .custom("Georgia\(italic ? "-Italic" : "")", size: size)
+            ? .custom(name, size: size, relativeTo: style)
+            : .custom("Georgia\(italic ? "-Italic" : "")", size: size, relativeTo: style)
     }
 
     static func inter(size: CGFloat, weight: Font.Weight = .regular) -> Font {
@@ -174,6 +174,10 @@ struct FilterPill: View {
                 .overlay(Capsule().stroke(isActive ? Color.darkGreen : Color.cardBorder, lineWidth: 1.5))
         }
         .buttonStyle(.plain)
+        .frame(minHeight: 44)
+        .contentShape(Capsule())
+        .accessibilityLabel("\(label) filter")
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 }
 
@@ -219,6 +223,7 @@ struct DebateItemRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .cardStyle()
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -241,6 +246,7 @@ struct StatCell: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 14)
         .padding(.horizontal, 10)
+        .accessibilityElement(children: .combine)
     }
 }
 

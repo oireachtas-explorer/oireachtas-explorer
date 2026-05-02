@@ -13,11 +13,20 @@ struct StageDots: View {
         return CGFloat(currentIdx) / CGFloat(stages.count - 1)
     }
 
+    private var stageAccessibilityLabel: String {
+        let currentStage = stages.first(where: \.isCurrent)?.name ?? "Complete"
+        let completed = stages.filter(\.isDone).count
+        return "Bill progress: \(completed) of \(stages.count) stages complete. Current stage: \(currentStage)"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             trackWithDots
             labelRow
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(stageAccessibilityLabel)
+        .accessibilityValue("\(Int(fillFraction * 100)) percent complete")
     }
 
     private var trackWithDots: some View {

@@ -87,6 +87,7 @@ struct ContentView: View {
                         Image(systemName: "ellipsis.circle")
                             .foregroundColor(Color.darkGreen)
                     }
+                    .accessibilityLabel("More options")
                 }
             }
             .navigationDestination(for: AppRoute.self, destination: routeDestination)
@@ -98,7 +99,7 @@ struct ContentView: View {
     private func tabContent(_ tab: AppTab) -> some View {
         switch tab {
         case .home:
-            HomeView()
+            HomeView(selectedTab: $selectedTab, navigate: { path.append($0) })
         case .search:
             GlobalSearchScaffold(navigate: { path.append($0) })
         case .members:
@@ -275,7 +276,7 @@ private struct OireachtasHomeScreen: View {
     }
 }
 
-private struct SessionPicker: View {
+struct SessionPicker: View {
     @EnvironmentObject private var session: AppSessionModel
 
     var body: some View {
@@ -675,6 +676,7 @@ private struct RouteHeader: View {
                     .foregroundColor(.white)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Go back")
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)

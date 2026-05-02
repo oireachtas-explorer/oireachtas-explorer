@@ -98,23 +98,21 @@ struct MemberProfileView: View {
     private let tabs = ["Overview", "Debates", "Votes", "Questions", "Legislation"]
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 0) {
-                    profileHeader
-                    tabBar
-                    tabContent
-                }
+        ScrollView {
+            VStack(spacing: 0) {
+                profileHeader
+                tabBar
+                tabContent
             }
-            .background(Color.cream)
-            .refreshable {
-                loadTabData(activeTab, force: true)
-            }
-            .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
-            .sheet(item: $activeURL) { url in
-                SafariView(url: url).ignoresSafeArea()
-            }
+        }
+        .background(Color.cream)
+        .refreshable {
+            loadTabData(activeTab, force: true)
+        }
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $activeURL) { url in
+            SafariView(url: url).ignoresSafeArea()
         }
     }
 

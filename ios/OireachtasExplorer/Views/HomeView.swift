@@ -3,18 +3,29 @@ import SwiftUI
 @MainActor
 final class HomeViewModel: ObservableObject {
     @Published var recentDebates: [Debate] = []
+    @Published var memberCount: Int = 0
+    @Published var constituencyCount: Int = 0
+    @Published var debateCount: Int = 0
     @Published var isLoading = false
     @Published var error: String?
 
-    func load() async {
-        guard recentDebates.isEmpty else { return }
+    func load(chamber: Chamber, houseNo: Int) async {
         isLoading = true
         error = nil
         do {
-            let (debates, _) = try await OireachtasAPI.shared.getDebates(
-                chamberId: currentDailChamberUri, limit: 5
-            )
+            let chamberId = houseUri(chamber: chamber, houseNo: houseNo)
+            async let debatesResult = OireachtasAPI.shared.getDebates(chamberId: chamberId, limit: 5)
+            async let membersResult = OireachtasAPI.shared.getMembers(chamber: chamber, houseNo: houseNo)
+            async let constituenciesResult = OireachtasAPI.shared.getConstituencies(chamber: chamber, houseNo: houseNo)
+
+            let (debates, total) = try await debatesResult
+            let members = try await membersResult
+            let constituencies = try await constituenciesResult
+
             recentDebates = debates
+            debateCount = total
+            memberCount = members.count
+            constituencyCount = constituencies.count
         } catch {
             self.error = error.localizedDescription
         }
@@ -24,24 +35,29 @@ final class HomeViewModel: ObservableObject {
 
 struct HomeView: View {
     @StateObject private var vm = HomeViewModel()
+    @EnvironmentObject private var session: AppSessionModel
+    @Binding var selectedTab: AppTab
+    let navigate: (AppRoute) -> Void
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 0) {
-                    heroSection
-                    statsSection
-                    recentDebatesSection
-                    attributionSection
-                }
-            }
-            .background(Color.cream)
-            .navigationBarHidden(true)
-            .refreshable {
-                await vm.load()
+        ScrollView {
+            VStack(spacing: 0) {
+                heroSection
+                SessionPicker()
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                statsSection
+                recentDebatesSection
+                attributionSection
             }
         }
-        .task { await vm.load() }
+        .background(Color.cream)
+        .refreshable {
+            await vm.load(chamber: session.chamber, houseNo: session.selectedHouseNo)
+        }
+        .task(id: "\(session.chamber.rawValue)-\(session.selectedHouseNo)") {
+            await vm.load(chamber: session.chamber, houseNo: session.selectedHouseNo)
+        }
     }
 
     // MARK: - Hero
@@ -53,10 +69,10 @@ struct HomeView: View {
                 startPoint: .top, endPoint: .bottom
             )
             VStack(alignment: .center, spacing: 0) {
-                Text("Dáil Éireann · 34ú Dáil")
+                Text("\(session.chamber.title) · \(session.selectedHouse.label(for: session.chamber))")
                     .font(.inter(size: 10, weight: .bold))
                     .tracking(1.0)
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundColor(.white.opacity(0.7))
                     .textCase(.uppercase)
                     .padding(.bottom, 14)
 
@@ -70,22 +86,22 @@ struct HomeView: View {
                 .lineSpacing(2)
                 .padding(.bottom, 14)
 
-                Text("Explore 174 TDs — their voting records, speeches and debates.")
+                Text("Explore \(vm.memberCount) \(session.chamber.pluralMemberNoun) — their voting records, speeches and debates.")
                     .font(.inter(size: 14))
-                    .foregroundColor(.white.opacity(0.65))
+                    .foregroundColor(.white.opacity(0.8))
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
                     .padding(.bottom, 24)
 
-                // Search bar navigation
-                NavigationLink(destination: MembersView()) {
+                Button { selectedTab = .members } label: {
                     HStack {
                         Image(systemName: "magnifyingglass")
-                            .foregroundColor(.white.opacity(0.5))
+                            .foregroundColor(.white.opacity(0.7))
                             .font(.system(size: 15))
-                        Text("Search your constituency…")
+                            .accessibilityHidden(true)
+                        Text("Search your \(session.chamber == .dail ? "constituency" : "panel")…")
                             .font(.inter(size: 15))
-                            .foregroundColor(.white.opacity(0.4))
+                            .foregroundColor(.white.opacity(0.6))
                         Spacer()
                     }
                     .padding(.horizontal, 18)
@@ -95,6 +111,7 @@ struct HomeView: View {
                     .overlay(Capsule().stroke(Color.white.opacity(0.2), lineWidth: 1.5))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Search \(session.chamber.pluralMemberNoun) by \(session.chamber == .dail ? "constituency" : "panel")")
             }
             .padding(.horizontal, 20)
             .padding(.top, 36)
@@ -107,15 +124,15 @@ struct HomeView: View {
     private var statsSection: some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-                StatCell(number: "174",  label: "TDs")
+                StatCell(number: "\(vm.memberCount)", label: session.chamber.pluralMemberNoun)
                     .overlay(Rectangle().frame(width: 1).foregroundColor(Color.cardBorder), alignment: .trailing)
-                StatCell(number: "43",   label: "Constituencies")
+                StatCell(number: "\(vm.constituencyCount)", label: session.chamber == .dail ? "Constituencies" : "Panels")
             }
             Divider().background(Color.cardBorder)
             HStack(spacing: 0) {
-                StatCell(number: "34th", label: "Dáil")
+                StatCell(number: session.selectedHouse.ordinal, label: session.chamber.title)
                     .overlay(Rectangle().frame(width: 1).foregroundColor(Color.cardBorder), alignment: .trailing)
-                StatCell(number: "2,847", label: "Debates")
+                StatCell(number: formattedCount(vm.debateCount), label: "Debates")
             }
         }
         .background(Color.white)
@@ -140,7 +157,14 @@ struct HomeView: View {
             } else {
                 ForEach(vm.recentDebates) { debate in
                     if let xmlUri = debate.rawXmlUri, let sectionUri = debate.debateSectionUri {
-                        NavigationLink(destination: DebateTranscriptView(title: debate.title, xmlUri: xmlUri, debateSectionUri: sectionUri, focusMemberUri: nil)) {
+                        Button {
+                            navigate(.debateViewer(
+                                xmlUri: xmlUri,
+                                debateSectionUri: sectionUri,
+                                title: debate.title,
+                                focusMemberUri: nil
+                            ))
+                        } label: {
                             DebateItemRow(
                                 title: debate.title,
                                 date: debate.formattedDate,
@@ -172,6 +196,12 @@ struct HomeView: View {
     }
 }
 
+private func formattedCount(_ value: Int) -> String {
+    let formatter = NumberFormatter()
+    formatter.numberStyle = .decimal
+    return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
+}
+
 private func friendlyType(_ debateType: String) -> String {
     switch debateType.lowercased() {
     case "questions": return "Questions"
@@ -182,5 +212,6 @@ private func friendlyType(_ debateType: String) -> String {
 }
 
 #Preview {
-    HomeView()
+    HomeView(selectedTab: .constant(.home), navigate: { _ in })
+        .environmentObject(AppSessionModel())
 }
