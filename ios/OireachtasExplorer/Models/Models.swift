@@ -1,5 +1,84 @@
 import Foundation
 
+// MARK: - App navigation and session state
+
+enum Chamber: String, CaseIterable, Identifiable, Codable, Hashable {
+    case dail
+    case seanad
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .dail: return "Dáil"
+        case .seanad: return "Seanad"
+        }
+    }
+
+    var memberNoun: String {
+        switch self {
+        case .dail: return "TD"
+        case .seanad: return "Senator"
+        }
+    }
+
+    var pluralMemberNoun: String {
+        switch self {
+        case .dail: return "TDs"
+        case .seanad: return "Senators"
+        }
+    }
+
+    var latestHouseNo: Int {
+        switch self {
+        case .dail: return latestDailNo
+        case .seanad: return latestSeanadNo
+        }
+    }
+}
+
+struct HouseInfo: Identifiable, Hashable {
+    let houseNo: Int
+    let year: Int
+
+    var id: Int { houseNo }
+    var ordinal: String { "\(houseNo)\(ordinalSuffix(houseNo))" }
+
+    func label(for chamber: Chamber) -> String {
+        "\(ordinal) \(chamber.title)"
+    }
+
+    func fullLabel(for chamber: Chamber) -> String {
+        year > 0 ? "\(label(for: chamber)) (\(year))" : label(for: chamber)
+    }
+}
+
+enum AppRoute: Hashable {
+    case globalSearch(query: String?)
+    case globalDebates
+    case globalLegislation
+    case debateViewer(xmlUri: String, debateSectionUri: String, title: String, focusMemberUri: String?)
+    case billViewer(billNo: String, billYear: String)
+    case savedItems
+    case publicCollection(slug: String)
+    case compareMembers
+    case partyMembers(partyName: String)
+    case constituencyMembers(code: String, name: String)
+    case memberProfile(memberUri: String, memberName: String, constituencyCode: String, constituencyName: String)
+    case committee(uri: String, name: String)
+    case about
+}
+
+private func ordinalSuffix(_ value: Int) -> String {
+    if value % 100 >= 11 && value % 100 <= 13 { return "th" }
+    switch value % 10 {
+    case 1: return "st"
+    case 2: return "nd"
+    case 3: return "rd"
+    default: return "th"
+    }
+}
+
 // MARK: - API envelope
 
 struct APIResult<T: Decodable>: Decodable {
@@ -446,8 +525,42 @@ func memberPhotoUrl(_ memberUri: String) -> String {
 
 // MARK: - Dáil metadata
 
-let currentDailNo = 34
+let latestDailNo = 34
+let seanadDailOffset = 7
+let latestSeanadNo = latestDailNo - seanadDailOffset
+
+// Back-compat for the current migration. Prefer AppSessionModel/chamber-aware
+// helpers in new code.
+let currentDailNo = latestDailNo
 let currentDailChamberUri = "https://data.oireachtas.ie/ie/oireachtas/house/dail/\(currentDailNo)"
+
+let dailYears: [Int: Int] = [
+    1: 1919, 2: 1921, 3: 1922, 4: 1923, 5: 1927, 6: 1927,
+    7: 1932, 8: 1933, 9: 1937, 10: 1938, 11: 1943, 12: 1944,
+    13: 1948, 14: 1951, 15: 1954, 16: 1957, 17: 1961, 18: 1965,
+    19: 1969, 20: 1973, 21: 1977, 22: 1981, 23: 1982, 24: 1982,
+    25: 1987, 26: 1989, 27: 1992, 28: 1997, 29: 2002, 30: 2007,
+    31: 2011, 32: 2016, 33: 2020, 34: 2024,
+]
+
+let seanadYears: [Int: Int] = Dictionary(
+    uniqueKeysWithValues: dailYears.compactMap { dailNo, year in
+        let seanadNo = dailNo - seanadDailOffset
+        return seanadNo >= 1 ? (seanadNo, year) : nil
+    }
+)
+
+func houseList(for chamber: Chamber) -> [HouseInfo] {
+    let latest = chamber.latestHouseNo
+    let years = chamber == .dail ? dailYears : seanadYears
+    return stride(from: latest, through: 1, by: -1).map {
+        HouseInfo(houseNo: $0, year: years[$0] ?? 0)
+    }
+}
+
+func houseUri(chamber: Chamber, houseNo: Int) -> String {
+    "https://data.oireachtas.ie/ie/oireachtas/house/\(chamber.rawValue)/\(houseNo)"
+}
 
 extension URL: @retroactive Identifiable {
     public var id: String { absoluteString }

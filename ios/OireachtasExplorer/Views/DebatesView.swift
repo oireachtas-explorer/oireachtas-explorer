@@ -3,15 +3,36 @@ import SafariServices
 
 // MARK: - ViewModel
 
+struct DebateMonthGroup: Identifiable {
+    let key: String
+    let label: String
+    let debates: [Debate]
+
+    var id: String { key }
+}
+
+private let debateQueryDateFormatter: DateFormatter = {
+    let df = DateFormatter()
+    df.dateFormat = "yyyy-MM-dd"
+    df.locale = Locale(identifier: "en_IE")
+    return df
+}()
+
 @MainActor
 final class DebatesViewModel: ObservableObject {
-    @Published var debates: [Debate] = []
+    @Published private(set) var debates: [Debate] = []
+    @Published private(set) var monthGroups: [DebateMonthGroup] = []
+    @Published private(set) var filteredDebateCount = 0
     @Published var isLoading = false
     @Published var isLoadingMore = false
     @Published var error: String?
     @Published var total = 0
-    @Published var selectedType: String = "All"
-    @Published var searchText: String = ""
+    @Published var selectedType: String = "All" {
+        didSet { rebuildDerivedDebates() }
+    }
+    @Published var searchText: String = "" {
+        didSet { rebuildDerivedDebates() }
+    }
     @Published var startDate: Date?
     @Published var endDate: Date?
 
@@ -23,7 +44,7 @@ final class DebatesViewModel: ObservableObject {
 
     var hasMore: Bool { debates.count < total }
 
-    var filteredDebates: [Debate] {
+    private var filteredDebates: [Debate] {
         var filtered = debates
         if selectedType != "All" {
             filtered = filtered.filter { matchesType($0, type: selectedType) }
@@ -34,23 +55,27 @@ final class DebatesViewModel: ObservableObject {
         return filtered
     }
 
-    var byMonth: [(key: String, label: String, debates: [Debate])] {
-        let grouped = Dictionary(grouping: filteredDebates, by: \.monthKey)
-        return grouped.keys.sorted(by: >).map { key in
-            (key: key, label: grouped[key]!.first!.monthLabel, debates: grouped[key]!)
+    private func rebuildDerivedDebates() {
+        let current = filteredDebates
+        filteredDebateCount = current.count
+        let grouped = Dictionary(grouping: current, by: \.monthKey)
+        monthGroups = grouped.keys.sorted(by: >).map { key in
+            DebateMonthGroup(key: key, label: grouped[key]!.first!.monthLabel, debates: grouped[key]!)
         }
     }
 
     func load(reset: Bool = false) async {
-        if reset { skip = 0; debates = [] }
+        if reset {
+            skip = 0
+            debates = []
+            rebuildDerivedDebates()
+        }
         guard !isLoading else { return }
         isLoading = true
         error = nil
         do {
-            let df = DateFormatter()
-            df.dateFormat = "yyyy-MM-dd"
-            let start = startDate.map { df.string(from: $0) }
-            let end = endDate.map { df.string(from: $0) }
+            let start = startDate.map { debateQueryDateFormatter.string(from: $0) }
+            let end = endDate.map { debateQueryDateFormatter.string(from: $0) }
 
             let (newDebates, newTotal) = try await OireachtasAPI.shared.getDebates(
                 chamberId: currentDailChamberUri,
@@ -61,6 +86,7 @@ final class DebatesViewModel: ObservableObject {
             debates.append(contentsOf: newDebates)
             total = newTotal
             skip += newDebates.count
+            rebuildDerivedDebates()
         } catch {
             self.error = error.localizedDescription
         }
@@ -258,7 +284,7 @@ struct DebatesView: View {
     private var debatesList: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0, pinnedViews: []) {
-                ForEach(vm.byMonth, id: \.key) { section in
+                ForEach(vm.monthGroups) { section in
                     // Month header
                     Text(section.label.uppercased())
                         .font(.inter(size: 12, weight: .bold))
@@ -276,7 +302,7 @@ struct DebatesView: View {
                 }
 
                 // Empty-filter hint
-                if vm.selectedType != "All" && vm.filteredDebates.isEmpty && !vm.debates.isEmpty {
+                if vm.selectedType != "All" && vm.filteredDebateCount == 0 && !vm.debates.isEmpty {
                     Text("No \(vm.selectedType) debates in the loaded results — try Load more.")
                         .font(.inter(size: 12))
                         .foregroundColor(Color.mutedText)

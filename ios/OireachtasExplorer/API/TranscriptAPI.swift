@@ -22,17 +22,46 @@ enum TranscriptError: Error, LocalizedError {
     }
 }
 
-final class TranscriptAPI {
+actor TranscriptAPI {
     static let shared = TranscriptAPI()
+    private var cache: [String: [SpeechSegment]] = [:]
+    private var cacheOrder: [String] = []
+    private var inFlight: [String: Task<[SpeechSegment], Error>] = [:]
+    private let cacheLimit = 30
     
     func fetchTranscript(xmlUri: String, debateSectionUri: String) async throws -> [SpeechSegment] {
-        guard let url = URL(string: xmlUri) else { throw TranscriptError.invalidURL }
-        
-        let (data, _) = try await URLSession.shared.data(from: url)
-        
-        let targetEid = debateSectionUri.components(separatedBy: "/").last ?? ""
-        let parser = TranscriptXMLParser(targetEid: targetEid)
-        return try parser.parse(data: data)
+        let cacheKey = "\(xmlUri)#\(debateSectionUri)"
+        if let cached = cache[cacheKey] { return cached }
+        if let task = inFlight[cacheKey] { return try await task.value }
+
+        let task = Task<[SpeechSegment], Error> {
+            guard let url = URL(string: xmlUri) else { throw TranscriptError.invalidURL }
+            let (data, _) = try await URLSession.shared.data(from: url)
+            let targetEid = debateSectionUri.components(separatedBy: "/").last ?? ""
+            let parser = TranscriptXMLParser(targetEid: targetEid)
+            return try parser.parse(data: data)
+        }
+        inFlight[cacheKey] = task
+
+        do {
+            let segments = try await task.value
+            remember(segments, for: cacheKey)
+            inFlight[cacheKey] = nil
+            return segments
+        } catch {
+            inFlight[cacheKey] = nil
+            throw error
+        }
+    }
+
+    private func remember(_ segments: [SpeechSegment], for key: String) {
+        cache[key] = segments
+        cacheOrder.removeAll { $0 == key }
+        cacheOrder.append(key)
+        while cacheOrder.count > cacheLimit {
+            let evicted = cacheOrder.removeFirst()
+            cache[evicted] = nil
+        }
     }
 }
 

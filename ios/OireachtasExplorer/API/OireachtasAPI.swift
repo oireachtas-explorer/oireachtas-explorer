@@ -6,6 +6,8 @@ actor OireachtasAPI {
     static let shared = OireachtasAPI()
 
     private let base = URL(string: "https://api.oireachtas.ie/v1/")!
+    private let decoder = JSONDecoder()
+    private var inFlight: [URL: Task<Data, Error>] = [:]
 
     // NSCache auto-evicts under memory pressure and is thread-safe — safer than
     // the unbounded [URL: Data] used previously in long-running sessions.
@@ -24,21 +26,39 @@ actor OireachtasAPI {
         guard let url = comps.url else { throw APIError.badURL }
 
         if let cached = cache.object(forKey: url as NSURL) {
-            return try JSONDecoder().decode(T.self, from: cached as Data)
+            return try decoder.decode(T.self, from: cached as Data)
         }
-        let (data, response) = try await URLSession.shared.data(from: url)
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            throw APIError.httpError((response as? HTTPURLResponse)?.statusCode ?? 0)
+
+        if let task = inFlight[url] {
+            return try decoder.decode(T.self, from: try await task.value)
         }
-        cache.setObject(data as NSData, forKey: url as NSURL, cost: data.count)
-        return try JSONDecoder().decode(T.self, from: data)
+
+        let task = Task<Data, Error> {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                throw APIError.httpError((response as? HTTPURLResponse)?.statusCode ?? 0)
+            }
+            return data
+        }
+        inFlight[url] = task
+
+        do {
+            let data = try await task.value
+            cache.setObject(data as NSData, forKey: url as NSURL, cost: data.count)
+            inFlight[url] = nil
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            inFlight[url] = nil
+            throw error
+        }
     }
 
     // MARK: - Constituencies
 
-    func getConstituencies(chamber: String = "dail", houseNo: Int = currentDailNo) async throws -> [Constituency] {
+    func getConstituencies(chamber: Chamber = .dail, houseNo: Int? = nil) async throws -> [Constituency] {
+        let resolvedHouseNo = houseNo ?? chamber.latestHouseNo
         let result: APIResult<ConstituencyItem> = try await fetch("constituencies", params: [
-            "chamber": chamber, "house_no": "\(houseNo)", "limit": "200",
+            "chamber": chamber.rawValue, "house_no": "\(resolvedHouseNo)", "limit": "200",
         ])
         return result.results
             .map { Constituency(id: $0.constituency.code, name: $0.constituency.name, uri: $0.constituency.uri) }
@@ -48,16 +68,17 @@ actor OireachtasAPI {
     // MARK: - Members
 
     func getMembers(
-        chamber: String = "dail", houseNo: Int = currentDailNo,
+        chamber: Chamber = .dail, houseNo: Int? = nil,
         constCode: String? = nil, memberUri: String? = nil
     ) async throws -> [Member] {
+        let resolvedHouseNo = houseNo ?? chamber.latestHouseNo
         var params: [String: String] = [
-            "chamber": chamber, "house_no": "\(houseNo)", "limit": "500",
+            "chamber": chamber.rawValue, "house_no": "\(resolvedHouseNo)", "limit": "500",
         ]
         if let c = constCode { params["const_code"] = c }
         if let m = memberUri  { params["member_id"] = m }
         let result: APIResult<MemberItem> = try await fetch("members", params: params)
-        return result.results.compactMap { normalizeMember($0.member, chamber: chamber, houseNo: houseNo) }
+        return result.results.compactMap { normalizeMember($0.member, chamber: chamber, houseNo: resolvedHouseNo) }
     }
 
     // MARK: - Debates
@@ -116,8 +137,17 @@ actor OireachtasAPI {
     // Fans out to 4 endpoints with limit=1 to read totals from head.counts —
     // much cheaper than loading the full lists just to count them.
 
-    func memberCounts(memberUri: String) async throws -> (debates: Int, votes: Int, questions: Int, bills: Int) {
-        let params = ["member_id": memberUri, "house_no": "\(currentDailNo)", "limit": "1"]
+    func memberCounts(
+        memberUri: String,
+        chamber: Chamber = .dail,
+        houseNo: Int? = nil
+    ) async throws -> (debates: Int, votes: Int, questions: Int, bills: Int) {
+        let resolvedHouseNo = houseNo ?? chamber.latestHouseNo
+        let params = [
+            "member_id": memberUri,
+            "chamber_id": houseUri(chamber: chamber, houseNo: resolvedHouseNo),
+            "limit": "1",
+        ]
         async let d: APIResult<DebateItem> = fetch("debates", params: params)
         async let v: APIResult<DivisionItem> = fetch("divisions", params: params)
         async let q: APIResult<QuestionItem> = fetch("questions", params: params)
@@ -149,11 +179,11 @@ actor OireachtasAPI {
 
     // MARK: - Normalisation
 
-    private func normalizeMember(_ raw: MemberRaw, chamber: String, houseNo: Int) -> Member? {
+    private func normalizeMember(_ raw: MemberRaw, chamber: Chamber, houseNo: Int) -> Member? {
         // Find the membership for this specific house
         let ms = raw.memberships?.compactMap(\.membership) ?? []
         let houseMembership = ms.first {
-            $0.house?.houseCode == chamber && $0.house?.houseNo == "\(houseNo)"
+            $0.house?.houseCode == chamber.rawValue && $0.house?.houseNo == "\(houseNo)"
         } ?? ms.first
 
         let party = extractParty(ms)

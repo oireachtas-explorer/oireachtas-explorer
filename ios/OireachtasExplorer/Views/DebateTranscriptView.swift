@@ -3,6 +3,7 @@ import SwiftUI
 @MainActor
 final class DebateTranscriptViewModel: ObservableObject {
     @Published var segments: [SpeechSegment] = []
+    @Published var participantsSummary = ""
     @Published var isLoading = false
     @Published var error: String?
     
@@ -12,12 +13,24 @@ final class DebateTranscriptViewModel: ObservableObject {
         error = nil
         
         do {
-            segments = try await TranscriptAPI.shared.fetchTranscript(xmlUri: xmlUri, debateSectionUri: debateSectionUri)
+            let loaded = try await TranscriptAPI.shared.fetchTranscript(xmlUri: xmlUri, debateSectionUri: debateSectionUri)
+            segments = loaded
+            participantsSummary = Self.participantsSummary(for: loaded)
         } catch {
             self.error = error.localizedDescription
         }
         
         isLoading = false
+    }
+
+    private static func participantsSummary(for segments: [SpeechSegment]) -> String {
+        var seen = Set<String>()
+        var names: [String] = []
+        for segment in segments where !seen.contains(segment.speakerName) {
+            seen.insert(segment.speakerName)
+            names.append(segment.speakerName)
+        }
+        return names.joined(separator: ", ")
     }
 }
 
@@ -101,9 +114,6 @@ struct DebateTranscriptView: View {
         } else {
             ScrollView {
                 LazyVStack(spacing: 24) {
-                    // Extract unique speakers
-                    let uniqueSpeakers = Array(Set(vm.segments.map(\.speakerName))).sorted()
-                    
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Participants")
                             .font(.inter(size: 12, weight: .bold))
@@ -111,7 +121,7 @@ struct DebateTranscriptView: View {
                             .tracking(0.5)
                             .textCase(.uppercase)
                         
-                        Text(uniqueSpeakers.joined(separator: ", "))
+                        Text(vm.participantsSummary)
                             .font(.inter(size: 13))
                             .foregroundColor(Color.secondaryText)
                     }
@@ -168,7 +178,7 @@ struct DebateTranscriptView: View {
                         .foregroundColor(Color.headingText)
                 }
                 
-                ForEach(segment.paragraphs, id: \.self) { paragraph in
+                ForEach(Array(segment.paragraphs.enumerated()), id: \.offset) { _, paragraph in
                     Text(paragraph)
                         .font(.inter(size: 15))
                         .foregroundColor(Color.bodyText)

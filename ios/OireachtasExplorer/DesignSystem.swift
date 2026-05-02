@@ -104,6 +104,57 @@ extension View {
     func cardStyle() -> some View { modifier(CardStyle()) }
 }
 
+// MARK: - Liquid Glass
+
+struct GlassSurfaceStyle: ViewModifier {
+    let cornerRadius: CGFloat
+    let isInteractive: Bool
+    let tint: Color?
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            let glass = (tint.map { Glass.regular.tint($0) } ?? .regular)
+            content
+                .glassEffect(isInteractive ? glass.interactive() : glass, in: .rect(cornerRadius: cornerRadius))
+        } else {
+            content
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .stroke(Color.white.opacity(0.45), lineWidth: 1)
+                )
+        }
+    }
+}
+
+extension View {
+    func glassSurface(cornerRadius: CGFloat = 18, tint: Color? = nil, interactive: Bool = false) -> some View {
+        modifier(GlassSurfaceStyle(cornerRadius: cornerRadius, isInteractive: interactive, tint: tint))
+    }
+}
+
+struct GlassActionButton: ViewModifier {
+    let isProminent: Bool
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            if isProminent {
+                content.buttonStyle(.glassProminent)
+            } else {
+                content.buttonStyle(.glass)
+            }
+        } else {
+            content.buttonStyle(.borderedProminent)
+        }
+    }
+}
+
+extension View {
+    func glassActionButton(prominent: Bool = false) -> some View {
+        modifier(GlassActionButton(isProminent: prominent))
+    }
+}
+
 // MARK: - Filter Pill
 
 struct FilterPill: View {
