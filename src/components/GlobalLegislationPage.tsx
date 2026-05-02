@@ -8,7 +8,7 @@ import { BillCard } from './BillCard';
 
 type LegislationTab = 'Government' | 'Private Member' | 'Passed';
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 5000;
 
 function clampDate(value: string, min: string, max: string): string {
   if (value < min) return min;
@@ -42,6 +42,12 @@ function billMatchesTab(bill: Bill, tab: LegislationTab): boolean {
   return bill.source === tab;
 }
 
+function byLatestDateDesc(a: Bill, b: Bill): number {
+  return b.lastUpdated.localeCompare(a.lastUpdated)
+    || b.billYear.localeCompare(a.billYear)
+    || Number(b.billNo) - Number(a.billNo);
+}
+
 interface GlobalLegislationPageProps {
   chamber: Chamber;
   houseNo: number;
@@ -53,14 +59,14 @@ export function GlobalLegislationPage({ chamber, houseNo, onBack, allMembers }: 
   const houseRange = useMemo(() => getHouseDateRange(chamber, houseNo), [chamber, houseNo]);
   const presetYear = useMemo(() => getHousePresetYearRange(chamber, houseNo), [chamber, houseNo]);
   const [activeTab, setActiveTab] = useState<LegislationTab>('Government');
-  const [dateStart, setDateStart] = useState(houseRange.start);
-  const [dateEnd, setDateEnd] = useState(houseRange.end);
+  const [dateStart, setDateStart] = useState(presetYear.start);
+  const [dateEnd, setDateEnd] = useState(presetYear.end);
 
   useEffect(() => {
-    setDateStart(houseRange.start);
-    setDateEnd(houseRange.end);
+    setDateStart(presetYear.start);
+    setDateEnd(presetYear.end);
     setActiveTab('Government');
-  }, [houseRange.start, houseRange.end]);
+  }, [presetYear.start, presetYear.end]);
 
   const effectiveStart = clampDate(dateStart || houseRange.start, houseRange.start, houseRange.end);
   const effectiveEnd = clampDate(dateEnd || houseRange.end, houseRange.start, houseRange.end);
@@ -101,7 +107,9 @@ export function GlobalLegislationPage({ chamber, houseNo, onBack, allMembers }: 
   const filteredBills = useMemo(
     () => {
       const sourceBills = activeTab === 'Passed' ? passedSourceBills : bills;
-      return sourceBills.filter((bill) => billMatchesTab(bill, activeTab));
+      return sourceBills
+        .filter((bill) => billMatchesTab(bill, activeTab))
+        .toSorted(byLatestDateDesc);
     },
     [bills, passedSourceBills, activeTab]
   );
@@ -198,6 +206,7 @@ export function GlobalLegislationPage({ chamber, houseNo, onBack, allMembers }: 
               animationIndex={index}
               showDetailsLink
               allMembers={allMembers}
+              collapsibleSummary
             />
           ))}
         </div>

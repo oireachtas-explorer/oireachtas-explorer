@@ -151,11 +151,13 @@ interface BillCardProps {
   animationIndex?: number;
   showDetailsLink?: boolean;
   allMembers?: Member[];
+  collapsibleSummary?: boolean;
 }
 
-export function BillCard({ bill, chamber, houseNo, animationIndex = 0, showDetailsLink = false, allMembers }: BillCardProps) {
+export function BillCard({ bill, chamber, houseNo, animationIndex = 0, showDetailsLink = false, allMembers, collapsibleSummary = false }: BillCardProps) {
   const [pdfOpen, setPdfOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [summaryExpanded, setSummaryExpanded] = useState(false);
   const stages = buildStages(bill);
   const hasPdf = billPdfUrl(bill) !== '';
   const detailHash = viewToHash({ kind: 'bill-viewer', billNo: bill.billNo, billYear: bill.billYear }, chamber, houseNo);
@@ -178,7 +180,22 @@ export function BillCard({ bill, chamber, houseNo, animationIndex = 0, showDetai
         </div>
         <div className="bill-card-title">{bill.title}</div>
         {bill.longTitleEn ? (
-          <div className="bill-card-longtitle" dangerouslySetInnerHTML={{ __html: bill.longTitleEn }} />
+          <div className="bill-card-summary">
+            <div
+              className={`bill-card-longtitle${collapsibleSummary && !summaryExpanded ? ' bill-card-longtitle--collapsed' : ''}`}
+              dangerouslySetInnerHTML={{ __html: bill.longTitleEn }}
+            />
+            {collapsibleSummary && (
+              <button
+                type="button"
+                className="bill-card-summary-toggle"
+                onClick={() => { setSummaryExpanded((expanded) => !expanded); }}
+                aria-expanded={summaryExpanded}
+              >
+                {summaryExpanded ? 'Show less' : 'Show more'}
+              </button>
+            )}
+          </div>
         ) : bill.currentStage ? (
           <div className="bill-card-longtitle">
             {bill.currentStage}{bill.originHouse ? ` · ${bill.originHouse}` : ''}
